@@ -1,60 +1,49 @@
 # AGENTS.md
 
-Canonical, always-loaded context for any agent working on this repo. Kept **thin** on
-purpose — it's in context every turn. Detail lives in [`docs/SoftwareStyle.md`](./docs/SoftwareStyle.md)
-(values & tenets), [`docs/adr/`](./docs/adr/) (decisions & why), and [`skills/`](./skills/)
-(procedures). Read `SoftwareStyle.md` before non-trivial work.
+Always-loaded context. Thin on purpose — in context every turn. Detail:
+[`docs/SoftwareStyle.md`](./docs/SoftwareStyle.md) (tenets), [`docs/adr/`](./docs/adr/)
+(decisions + why), [`skills/`](./skills/) (procedures). Read `SoftwareStyle.md` before
+non-trivial work.
 
 ## What this is
-A **software factory**: a TUI that takes tickets and produces code merged to
-production, built to operate on *any* codebase — including itself. The **engine is
-language-agnostic**; all standards are data. This repo is the factory's own code
-(Layer A) *and* its first target project (Layer B) — same mechanism, different content.
+Software factory: TUI that takes tickets, ships code to production, built to run on
+*any* codebase — including itself. Engine is language-agnostic; standards are data. This
+repo is Layer A (the factory's code) *and* Layer B (its first target) — same mechanism,
+different content.
 
 ## Priority ordering (resolves every trade-off, high beats low)
-**Legibility > Correctness > Operability > Economy.** Machine performance is not on
-the list (ignore below ~1s). Definitions and the explicit trades are in `SoftwareStyle.md` under *Priority ordering*.
+**Legibility > Correctness > Operability > Economy.** Machine perf unranked (ignore
+below ~1s). Definitions + trades: `SoftwareStyle.md`.
 
-## Testability is a floor, never traded
+## Testability floor (never traded)
 No unit test touches the real world. Every external edge (LLM, shell, clock, fs,
-network, terminal) sits behind an injectable interface. `:memory:` sqlite is fine.
+network, terminal) behind an injectable interface. `:memory:` sqlite fine.
 
-## The rules that always apply
-1. **Make correctness mechanical** — if a lint/type/codegen can enforce it, it must.
-2. **No escape hatches** — no `//nolint`, no ignored errors, no bare `any`, no silent `recover`.
-3. **Deep modules, narrow door** — narrow public surface, deep private internals; split by sub-capability; seal sub-packages with nested `internal/`.
-4. **No leaky abstractions** — `sqlc` types stay in `store`; `bubbletea` stays in `tui`.
-5. **Fail fast & helpful** — config errors are clean user-facing messages + non-zero exit, never a panic dump.
-6. **Panics never escape a unit of work** — recover boundary per run/worker/TUI-loop.
-7. **The engine is headless** — no domain logic in the TUI; engine↔TUI only via the `EventSink` seam.
-8. **Logging is a platform feature** — baked into the primitives; verbose, run-id-correlated, to a file, written for a future debugging agent.
-9. **Don't rely on reading** — enforcement pyramid: mechanical > always-loaded context > hooks > skills.
+## Tenets (detail in SoftwareStyle — linked, not restated)
+mechanical-correctness · no-escape-hatches · deep-modules/narrow-door ·
+no-leaky-abstractions · elegant-deps-within-bar · micro-libs-when-earned ·
+fail-fast-helpful · panics-contained-per-unit · platform-logging · headless-engine ·
+dont-rely-on-reading · single-source-of-truth.
 
 ## Dependencies
-Not minimalist — prefer the elegant lib that improves legibility, *within the bar*
-(readable surface, maintained, popular, permissive licence, small transitive
-footprint, godoc-legible seam). Pin everything. Wrap only risky/leaky deps.
-Chosen: `cockroachdb/errors`, `log/slog`, `koanf`, `modernc.org/sqlite`, `goose`,
-`sqlc` (codegen), `bubbletea`/`lipgloss`, `ginkgo`/`gomega`. `os.Getenv` is banned
-outside `internal/config`.
+Not minimalist — prefer the elegant lib that aids legibility, within the bar (readable,
+maintained, popular, permissive, small transitive, godoc-legible seam). Pin everything.
+Wrap only risky/leaky. `os.Getenv` only in `config`; `time.Now`/`time.Local` only in
+`clock`; entropy only in `cmd/`.
 
 ## Repo shape
-Single module, single binary. `cmd/factory/` is the composition root (manual
-constructor injection — the whole dependency graph wired by hand in one place).
-`internal/` is organized **by domain** (deep modules), never by layer. No `pkg/`.
-Domain names are not yet fixed — do not hardcode a vocabulary prematurely.
+Single module, single binary. `cmd/factory/` = composition root (manual constructor
+injection, graph wired by hand). `internal/` by domain (deep modules), never by layer.
+No `pkg/`. Domain names unfixed — don't hardcode a vocabulary.
 
-## Agent operating protocol
-- **Branch per task; never commit to `main`.** PR to merge. Conventional, atomic commits.
-- **TDD is mandatory test-first for engine/domain code.** For UI code it's preferred
-  but left to judgment — never blocked, never forced.
-- **Done-loop:** a change is not "done" until `golangci-lint` and the relevant tests
-  pass. This is hook-enforced, but own it regardless.
-- **Verification before completion:** never claim "fixed"/"passes" without the command
-  output that proves it. Evidence before assertion.
-- **Stop and ask** before anything irreversible or outward-facing: force-push, merge to
-  `main`, deleting data or migrating down in anger, side-effecting external calls.
+## Operating protocol
+- Branch per task; never commit `main`. PR to merge. Conventional, atomic commits.
+- TDD test-first mandatory for engine/domain; preferred-not-forced for UI.
+- Done = `golangci-lint` + relevant tests pass (hook-enforced; own it anyway).
+- Verify before claiming done — command output, not assertion.
+- Stop and ask before anything irreversible/outward-facing: force-push, `main` merge,
+  deleting data / migrating down, side-effecting external calls.
 
 ## The wall
-[`.golangci.yml`](./.golangci.yml) enforces the mechanical tenets. If you want to
-disable a rule, fix the code instead (rule #2).
+[`.golangci.yml`](./.golangci.yml) enforces the mechanical tenets. Want a rule off? Fix
+the code (no-escape-hatches).
