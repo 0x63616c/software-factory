@@ -1,0 +1,135 @@
+# SoftwareStyle's mechanical enforcement layer. This file IS the wall.
+# Tenets that can be enforced by a tool are enforced here (SoftwareStyle: Mechanical enforcement).
+# If a rule fires, the fix is the CODE, not this config (tenet #2: no escape hatches).
+#
+# golangci-lint v2 schema.
+version: "2"
+
+linters:
+  # Start from the standard set and add our opinions. Nothing critical is optional.
+  enable:
+    - depguard        # architectural import boundaries (engine ⊥ TUI, sqlc sealed in store)
+    - forbidigo       # banned calls (os.Getenv outside config, stdout writes)
+    - errcheck        # no ignored errors (tenet #2)
+    - exhaustive      # enum switches must be complete (make correctness mechanical)
+    - errorlint       # correct error wrapping / comparison (cockroachdb/errors friendly)
+    - nolintlint      # //nolint must be specific + explained (hard ban is a CI grep, see below)
+    - bodyclose       # response bodies closed
+    - rowserrcheck    # sql.Rows.Err checked
+    - sqlclosecheck   # sql resources closed
+    - containedctx    # no context.Context stored in structs
+    - contextcheck    # context propagated correctly
+    - fatcontext      # no context in loops / nested-context misuse
+    - revive          # style / legibility net (exported + package doc comments)
+    - gocritic        # correctness + legibility diagnostics
+    - ginkgolinter    # ginkgo/gomega assertion hygiene
+    - godot           # comments end in a period
+    - misspell
+    - unconvert
+    - wastedassign
+
+  settings:
+    depguard:
+      rules:
+        # Tenet #10: the engine is headless. Nothing under internal/ may import the
+        # terminal libraries EXCEPT internal/tui/**. An agent that tries to poke the
+        # TUI from the engine gets a build failure — the only open door is EventSink.
+        engine-is-headless:
+          files:
+            - "**/internal/**"
+            - "!**/internal/tui/**"
+          deny:
+            - pkg: github.com/charmbracelet/bubbletea
+              desc: "engine is headless — talk to the TUI only via the EventSink seam (SoftwareStyle: the engine is headless; ADR-0011)"
+            - pkg: github.com/charmbracelet/lipgloss
+              desc: "presentation only — styling lives in the tui theme package"
+            - pkg: github.com/charmbracelet/bubbles
+              desc: "presentation only — lives under internal/tui"
+        # Testability floor: randomness is a non-deterministic edge and is injected as
+        # an io.Reader. Only the composition root (cmd/) constructs the real source, so
+        # crypto/rand and math/rand are import-banned everywhere else. Tests supply a
+        # deterministic reader; they're excluded below.
+        entropy-is-injected:
+          files:
+            - "**/*.go"
+            - "!**/cmd/**"
+          deny:
+            - pkg: crypto/rand
+              desc: "randomness is injected as an io.Reader — construct crypto/rand only at the composition root, cmd/ (SoftwareStyle: Testability floor)"
+            - pkg: math/rand
+              desc: "use injected entropy, not ambient math/rand"
+            - pkg: math/rand/v2
+              desc: "use injected entropy, not ambient math/rand/v2"
+        # Tenet #4: no leaky abstractions. sqlc/database-level types stay sealed in
+        # internal/store. The rest of the codebase sees domain types, never sql.*.
+        store-owns-sql:
+          files:
+            - "**/internal/**"
+            - "!**/internal/store/**"
+          deny:
+            - pkg: database/sql
+              desc: "SQL types are sealed in internal/store (SoftwareStyle: no leaky abstractions). Depend on the store's narrow interface."
+
+    forbidigo:
+      analyze-types: true
+      forbid:
+        # Tenet: config is the single source of truth. os.Getenv buried in a random
+        # file is the disease. Confined to internal/config (see exclusions below).
+        - pattern: '^os\.Getenv$'
+          msg: "read config only via internal/config — os.Getenv is banned elsewhere (SoftwareStyle: single source of truth)"
+        - pattern: '^os\.LookupEnv$'
+          msg: "read config only via internal/config — os.LookupEnv is banned elsewhere"
+        # Tenet #9: logs never go to the terminal — the TUI owns it. Use slog → file.
+        - pattern: '^fmt\.Print(ln|f)?$'
+          msg: "never write to stdout — the TUI owns the terminal. Use the injected slog logger (SoftwareStyle: observability is a platform feature)"
+        # Testability floor: reading the current time is an external edge. Depend on
+        # clock.Clock (injected) instead — time.Now is sealed in internal/clock.
+        - pattern: '^time\.Now$'
+          msg: "read time only via an injected clock.Clock — time.Now is banned outside internal/clock (SoftwareStyle: Testability floor)"
+        # Time & units: the engine is UTC-only. Local-zone time never enters it.
+        - pattern: '^time\.Local$'
+          msg: "the engine is UTC-only — localization happens only in the TUI (SoftwareStyle: Time & units)"
+
+    exhaustive:
+      # A `default:` case does NOT excuse missing enum cases — we want every case explicit.
+      default-signifies-exhaustive: false
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+
+    revive:
+      rules:
+        - name: exported          # exported symbols are documented (legibility)
+        - name: package-comments  # every package has a doc comment (Code prose)
+        - name: unexported-return
+        - name: context-as-argument
+        - name: error-return
+        - name: error-naming
+
+  exclusions:
+    rules:
+      # os env access is legal in exactly one place: the config package.
+      - path: 'internal/config/'
+        linters: [forbidigo]
+      # time.Now is legal in exactly one place: the clock package.
+      - path: 'internal/clock/'
+        linters: [forbidigo]
+      # The composition root and tests may print to stdout (no TUI is running there).
+      - path: 'cmd/'
+        text: 'never write to stdout'
+        linters: [forbidigo]
+      - path: '_test\.go'
+        text: 'never write to stdout'
+        linters: [forbidigo]
+
+formatters:
+  enable:
+    - gofumpt         # stricter gofmt
+    - goimports
+
+# NOTE (tenet #2, "no escape hatches"): golangci-lint cannot itself hard-ban a
+# well-formed //nolint. The hard ban is a CI step:
+#     ! grep -rEn '//\s*nolint' --include='*.go' .
+# nolintlint above is defence-in-depth; the grep is the wall. Add it to CI.
