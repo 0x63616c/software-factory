@@ -18,6 +18,7 @@ package id
 import (
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/cockroachdb/errors"
 	"github.com/oklog/ulid/v2"
@@ -27,7 +28,11 @@ import (
 
 // Generator mints IDs from an injected clock and entropy source. Both edges are
 // controlled, so IDs are sortable (clock) and reproducible in tests (entropy).
+//
+// One Generator is shared across concurrent units (ADR-0017), and a monotonic entropy
+// source is not safe for concurrent use, so mu serializes every mint.
 type Generator struct {
+	mu      sync.Mutex
 	clk     clock.Clock
 	entropy io.Reader
 }
@@ -38,10 +43,18 @@ func NewGenerator(clk clock.Clock, entropy io.Reader) *Generator {
 	return &Generator{clk: clk, entropy: entropy}
 }
 
-// New mints a fresh "<prefix>_<ulid>".
-func (g *Generator) New(prefix string) string {
-	body := ulid.MustNew(ulid.Timestamp(g.clk.Now()), g.entropy)
-	return prefix + "_" + body.String()
+// New mints a fresh "<prefix>_<ulid>", or returns a wrapped error if the entropy
+// source fails. A failing reader (or a monotonic overflow) is a real runtime failure,
+// not a "can't happen" — so it is returned, never panicked on (ADR-0006, tenet #8).
+func (g *Generator) New(prefix string) (string, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	body, err := ulid.New(ulid.Timestamp(g.clk.Now()), g.entropy)
+	if err != nil {
+		return "", errors.Wrapf(err, "mint %q id", prefix)
+	}
+	return prefix + "_" + body.String(), nil
 }
 
 // Parse checks that s carries the expected prefix and a well-formed ULID body, and
