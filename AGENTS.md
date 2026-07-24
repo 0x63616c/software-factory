@@ -37,6 +37,8 @@ injection, graph wired by hand). `internal/` by domain (deep modules), never by 
 No `pkg/`. Domain names unfixed — don't hardcode a vocabulary.
 
 ## Operating protocol
+- Fresh clone: run `./scripts/setup.sh` (or `just setup`) first — installs the git-hook
+  wall, which is off until then. Needs only the Go toolchain (tools are pinned).
 - Branch per task; never commit `main`. PR to merge. Conventional, atomic commits.
 - TDD test-first mandatory for engine/domain; preferred-not-forced for UI.
 - Done = `golangci-lint` + relevant tests pass (hook-enforced; own it anyway).
@@ -46,4 +48,6 @@ No `pkg/`. Domain names unfixed — don't hardcode a vocabulary.
 
 ## The wall
 [`.golangci.yml`](./.golangci.yml) enforces the mechanical tenets. Want a rule off? Fix
-the code (no-escape-hatches).
+the code (no-escape-hatches). The check list lives once in [`lefthook.yml`](./lefthook.yml)
+(local hooks) and CI re-runs it unchanged ([ADR-0025](./docs/adr/0025-ci-backstop.md)) —
+edit that one file, not the workflow.

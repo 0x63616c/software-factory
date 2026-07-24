@@ -34,6 +34,7 @@ alternatives / Consequences. Status is one of Proposed / Accepted / Superseded.
 22. [Lifecycle state machines](0022-lifecycle-state-machines.md) — typed states, one guarded transition
 23. [Code prose](0023-code-prose.md) — comments, docstrings, and test names
 24. [Boundaries & interfaces](0024-boundaries-and-interfaces.md) — parse don't validate, consumer-side interfaces, no grab-bag packages
+25. [CI backstop](0025-ci-backstop.md) — unbypassable CI delegating to lefthook; one check list, no drift
 
 *Deferred — to be specified with the runtime spine, not yet decided: the LLM interaction
 layer (prompts versioned & embedded, output validated at the boundary, model-per-stage),

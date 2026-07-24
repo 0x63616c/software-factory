@@ -48,5 +48,24 @@ cmd/factory/      the binary + composition root (manual DI wired here)
 internal/         domain packages (deep modules, by domain — names TBD)
 docs/             SoftwareStyle.md + adr/
 skills/           procedures for recurring tasks
+scripts/          setup.sh — fresh-clone bootstrap
+justfile          developer command runner (thin wrappers; `just --list`)
 .golangci.yml     the mechanical enforcement layer
+.github/          CI — the unbypassable wall (ADR-0025)
 ```
+
+## Setup
+
+Everything is pinned in `go.mod`'s `tool` block, so all you need is the Go toolchain.
+After cloning, run the bootstrap **first** — it installs the git-hook wall
+([ADR-0013](./docs/adr/0013-enforcement-pyramid.md)), which is otherwise off on a fresh
+clone:
+
+```
+./scripts/setup.sh      # or: just setup
+```
+
+Then `just --list` shows the dev recipes (`just check` runs the same wall the hooks and
+CI run). CI ([ADR-0025](./docs/adr/0025-ci-backstop.md)) re-runs that wall on every push
+and PR by delegating to the same `lefthook.yml` — so it can't be bypassed and can't
+drift from local.

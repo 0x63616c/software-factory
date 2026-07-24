@@ -58,3 +58,8 @@ string (readable, sortable, greppable). Input from outside (DB/API/user) goes th
   A pure function can't mint an ID — correct, since minting reads time + randomness.
 - Production entropy should use `ulid.Monotonic` to guarantee ordering within a
   millisecond (an implementation detail of the entropy source, not the interface).
+  `ulid.Monotonic` is not safe for concurrent use, and one `Generator` is shared across
+  concurrent units ([ADR-0019]), so `Generator.New` holds a mutex around each mint.
+- `Generator.New` returns `(string, error)`: a reader failure or monotonic overflow is a
+  real runtime failure, not a "can't happen", so it is returned, never panicked on
+  ([ADR-0006]).
