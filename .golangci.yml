@@ -113,8 +113,15 @@ linters:
       # os env access is legal in exactly one place: the config package.
       - path: 'internal/config/'
         linters: [forbidigo]
-      # time.Now is legal in exactly one place: the clock package.
+      # time.Now is legal in exactly one place: the clock package. Scope the exemption
+      # to that ONE diagnostic — a path-wide forbidigo skip would also let time.Local
+      # (and stdout) slip into clock, defeating the other one-door rules.
       - path: 'internal/clock/'
+        text: 'read time only via an injected clock.Clock'
+        linters: [forbidigo]
+      # time.Local is legal in exactly one place: the TUI (localization).
+      - path: 'internal/tui/'
+        text: 'localization happens only in the TUI'
         linters: [forbidigo]
       # The composition root and tests may print to stdout (no TUI is running there).
       - path: 'cmd/'
@@ -130,6 +137,5 @@ formatters:
     - goimports
 
 # NOTE (tenet #2, "no escape hatches"): golangci-lint cannot itself hard-ban a
-# well-formed //nolint. The hard ban is a CI step:
-#     ! grep -rEn '//\s*nolint' --include='*.go' .
-# nolintlint above is defence-in-depth; the grep is the wall. Add it to CI.
+# well-formed //nolint. nolintlint above is defence-in-depth; the hard ban is a grep
+# (`nolint-ban` in lefthook.yml), which runs in both the local hook and CI.

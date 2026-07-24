@@ -1,10 +1,13 @@
 # Git-hook wall — rung "git hooks" of the SoftwareStyle enforcement pyramid
 # (ADR-0013). Tool-agnostic: catches ANY committer, human or agent, not just Claude.
-# lefthook and govulncheck are pinned via the `tool` directive in go.mod
-# (run: `go tool lefthook ...`).
+# lefthook, golangci-lint and govulncheck are all pinned via the `tool` directive in
+# go.mod, so a clean clone runs the exact same versions (run: `go tool <name> ...`).
 #
-# CI (GitHub Actions) is the unbypassable backstop — git hooks can be skipped with
-# `--no-verify`, so the same checks run again on push/PR. Add that with the runtime spine.
+# CI (GitHub Actions, .github/workflows/ci.yml) is the unbypassable backstop — git hooks
+# can be skipped with `--no-verify`, so CI re-runs these SAME commands via
+# `lefthook run` on every push/PR. This file is therefore the single source of truth for
+# the check list (tenet #12): add a check here and CI picks it up for free — the two
+# cannot drift.
 #
 # Commands run over the whole module (small repo; fast, and works regardless of what's
 # staged). Split to staged-file scoping later if the suite gets slow.
@@ -15,7 +18,13 @@ pre-commit:
     build:
       run: go build ./...
     lint:
-      run: golangci-lint run ./...
+      run: go tool golangci-lint run ./...
+    # The hard ban golangci-lint can't enforce on itself (tenet #2, no escape hatches):
+    # a well-formed `//nolint` is invisible to nolintlint's own rules, so grep is the
+    # wall. `!` inverts — any match fails the hook. Lives here, not just in CI, so the
+    # local hook and the CI backstop share one definition (see header).
+    nolint-ban:
+      run: '! grep -rEn "//\s*nolint" --include="*.go" .'
     test:
       run: go test ./...
 
