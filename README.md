@@ -47,8 +47,9 @@ trades resolve.
 cmd/factory/      the binary + composition root (manual DI wired here)
 internal/         domain packages (deep modules, by domain — names TBD)
 docs/             SoftwareStyle.md + adr/
-skills/           procedures for recurring tasks
-scripts/          setup.sh — fresh-clone bootstrap
+skills/           procedures for recurring tasks (canonical home; ADR-0026)
+.claude/skills/   generated symlinks so Claude Code can invoke skills/ (ADR-0026)
+scripts/          setup.sh — fresh-clone bootstrap; link-skills.sh
 justfile          developer command runner (thin wrappers; `just --list`)
 .golangci.yml     the mechanical enforcement layer
 .github/          CI — the unbypassable wall (ADR-0025)

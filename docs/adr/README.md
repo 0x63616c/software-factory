@@ -35,6 +35,7 @@ alternatives / Consequences. Status is one of Proposed / Accepted / Superseded.
 23. [Code prose](0023-code-prose.md) — comments, docstrings, and test names
 24. [Boundaries & interfaces](0024-boundaries-and-interfaces.md) — parse don't validate, consumer-side interfaces, no grab-bag packages
 25. [CI backstop](0025-ci-backstop.md) — unbypassable CI delegating to lefthook; one check list, no drift
+26. [Skills, two consumers](0026-skills-two-consumers.md) — canonical `skills/`, per-skill symlinks into `.claude/skills`
 
 *Deferred — to be specified with the runtime spine, not yet decided: the LLM interaction
 layer (prompts versioned & embedded, output validated at the boundary, model-per-stage),

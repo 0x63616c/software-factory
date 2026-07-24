@@ -19,4 +19,7 @@ fi
 echo "==> installing git hooks (lefthook, pinned via go.mod)"
 go tool lefthook install
 
+echo "==> linking skills for Claude Code discovery"
+./scripts/link-skills.sh
+
 echo "==> done. The commit/push wall is now active. Try: just check"

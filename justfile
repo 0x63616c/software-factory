@@ -26,3 +26,7 @@ test:
 # Lint via the pinned golangci-lint.
 lint:
     go tool golangci-lint run ./...
+
+# Regenerate .claude/skills symlinks after adding/removing a skill (ADR-0026).
+link-skills:
+    ./scripts/link-skills.sh
