@@ -22,7 +22,7 @@ rm -f "$result"
 
 docker run --rm --detach \
   --name "$container" \
-  --publish 127.0.0.1::5432 \
+  --publish 127.0.0.1:0:5432 \
   --env POSTGRES_USER=software_factory \
   --env POSTGRES_PASSWORD=software_factory \
   --env POSTGRES_DB=software_factory \
@@ -34,9 +34,18 @@ for _ in $(seq 1 60); do
   fi
   sleep 0.25
 done
-docker exec "$container" pg_isready -U software_factory -d software_factory >/dev/null
+if ! docker exec "$container" pg_isready -U software_factory -d software_factory >/dev/null; then
+  docker logs "$container" >&2
+  echo "disposable PostgreSQL did not become ready" >&2
+  exit 1
+fi
 
-port="$(docker port "$container" 5432/tcp | sed -E 's/.*:([0-9]+)$/\1/')"
+published="$(docker port "$container" 5432/tcp)"
+port="$(sed -E 's/.*:([0-9]+)$/\1/' <<<"$published")"
+if [[ ! "$port" =~ ^[0-9]+$ ]]; then
+  echo "could not resolve disposable PostgreSQL port from: $published" >&2
+  exit 1
+fi
 export SOFTWARE_FACTORY_DATABASE_URL="postgresql://software_factory:software_factory@127.0.0.1:${port}/software_factory?sslmode=disable"
 export SOFTWARE_FACTORY_E2E_RESULT="$result"
 
