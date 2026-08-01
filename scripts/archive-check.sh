@@ -4,6 +4,15 @@ set -euo pipefail
 readonly archive_source_commit="afd075dfc20edc3e8228b3baba3dd40ffd7110e9"
 readonly expected_count="54"
 
+if ! git cat-file -e "${archive_source_commit}^{tree}" 2>/dev/null; then
+  printf 'archive: source commit is unavailable: %s\n' "${archive_source_commit}" >&2
+  exit 1
+fi
+
+source_tree="$(mktemp)"
+trap 'rm -f "${source_tree}"' EXIT INT TERM
+git ls-tree -r "${archive_source_commit}" >"${source_tree}"
+
 actual_count="$(git ls-files '_archived/**' | wc -l | tr -d ' ')"
 if [[ "${actual_count}" != "${expected_count}" ]]; then
   printf 'archive: got %s tracked files, want %s\n' "${actual_count}" "${expected_count}" >&2
@@ -26,7 +35,7 @@ while IFS=$'\t' read -r source_metadata source_path; do
     printf 'archive: content changed at %s\n' "${archived_path}" >&2
     exit 1
   fi
-done < <(git ls-tree -r "${archive_source_commit}")
+done <"${source_tree}"
 
 if git ls-files --others --exclude-standard -- _archived | grep -q .; then
   printf 'archive: unexpected untracked content under _archived\n' >&2
