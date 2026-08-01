@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in docker jq go; do
+for command in docker grep jq go; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "e2e requires $command" >&2
     exit 1
@@ -28,8 +28,9 @@ docker run --rm --detach \
   --env POSTGRES_DB=software_factory \
   postgres:17 >/dev/null
 
-for _ in $(seq 1 60); do
-  if docker exec "$container" pg_isready -U software_factory -d software_factory >/dev/null 2>&1; then
+for _ in $(seq 1 120); do
+  if docker logs "$container" 2>&1 | grep -Fq 'PostgreSQL init process complete; ready for start up.' && \
+    docker exec "$container" pg_isready -U software_factory -d software_factory >/dev/null 2>&1; then
     break
   fi
   sleep 0.25
