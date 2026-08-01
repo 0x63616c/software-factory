@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	. "github.com/onsi/ginkgo/v2"
 	"strconv"
 	"testing"
 	"time"
@@ -24,12 +25,126 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+var _ = Describe("WorkOnTicket", func() {
+	It("TestWorkOnTicketClaimsBeforeProvisioningGenerationOneAndClonesThroughItsSession", func() {
+		TestWorkOnTicketClaimsBeforeProvisioningGenerationOneAndClonesThroughItsSession(GinkgoT())
+	})
+	It("TestWorkOnTicketConfirmsMergeBeforeBestEffortTeardown", func() {
+		TestWorkOnTicketConfirmsMergeBeforeBestEffortTeardown(GinkgoT())
+	})
+	It("TestWorkOnTicketDerivesTheRunIdentityFromItsTemporalExecution", func() {
+		TestWorkOnTicketDerivesTheRunIdentityFromItsTemporalExecution(GinkgoT())
+	})
+	It("TestWorkOnTicketRepairsRedCIThenReviewsTheNewHead", func() {
+		TestWorkOnTicketRepairsRedCIThenReviewsTheNewHead(GinkgoT())
+	})
+	It("TestWorkOnTicketRepairsBlockingReviewWithFreshCandidateAuthorization", func() {
+		TestWorkOnTicketRepairsBlockingReviewWithFreshCandidateAuthorization(GinkgoT())
+	})
+	It("TestWorkOnTicketNeverMergesAHeadChangedAfterReview", func() {
+		TestWorkOnTicketNeverMergesAHeadChangedAfterReview(GinkgoT())
+	})
+	It("TestWorkOnTicketRetriesRepairableMergeFailuresWithinOneStepUntilSemanticDeadline", func() {
+		TestWorkOnTicketRetriesRepairableMergeFailuresWithinOneStepUntilSemanticDeadline(GinkgoT())
+	})
+	It("TestWorkOnTicketFinalizesMergeRetryDeadline", func() {
+		TestWorkOnTicketFinalizesMergeRetryDeadline(GinkgoT())
+	})
+	It("TestWorkOnTicketRetriesFailedMergeTerminalRecording", func() {
+		TestWorkOnTicketRetriesFailedMergeTerminalRecording(GinkgoT())
+	})
+	It("TestWorkOnTicketRetriesPendingCIInsideOneStep", func() {
+		TestWorkOnTicketRetriesPendingCIInsideOneStep(GinkgoT())
+	})
+	It("TestWorkOnTicketFinalizesCIScheduleToCloseTimeoutImmediately", func() {
+		TestWorkOnTicketFinalizesCIScheduleToCloseTimeoutImmediately(GinkgoT())
+	})
+	It("TestWorkOnTicketClassifiesAnotherCITimeoutAsInfrastructure", func() {
+		TestWorkOnTicketClassifiesAnotherCITimeoutAsInfrastructure(GinkgoT())
+	})
+	It("TestWorkOnTicketRenewsCredentialDuringOneActiveAgentAttempt", func() {
+		TestWorkOnTicketRenewsCredentialDuringOneActiveAgentAttempt(GinkgoT())
+	})
+	It("TestWorkOnTicketDelegatesModelTurnRetriesToOneChildPerAttempt", func() {
+		TestWorkOnTicketDelegatesModelTurnRetriesToOneChildPerAttempt(GinkgoT())
+	})
+	It("TestWorkOnTicketMapsAuthorizedAttemptsToBoundedChildIdentities", func() {
+		TestWorkOnTicketMapsAuthorizedAttemptsToBoundedChildIdentities(GinkgoT())
+	})
+	It("TestWorkOnTicketCarriesAcceptanceBackoffIntoEveryChild", func() {
+		TestWorkOnTicketCarriesAcceptanceBackoffIntoEveryChild(GinkgoT())
+	})
+	It("TestWorkOnTicketFailsRunningAttemptWithItsActiveStep", func() {
+		TestWorkOnTicketFailsRunningAttemptWithItsActiveStep(GinkgoT())
+	})
+	It("TestWorkOnTicketFinalizesChildEvidenceBeforeCompletingAgentStep", func() {
+		TestWorkOnTicketFinalizesChildEvidenceBeforeCompletingAgentStep(GinkgoT())
+	})
+	It("TestWorkOnTicketNamesTheTargetEvidenceActivityUnambiguously", func() {
+		TestWorkOnTicketNamesTheTargetEvidenceActivityUnambiguously(GinkgoT())
+	})
+	It("TestWorkOnTicketStartsFreshSemanticAttemptOnlyForClassifiedTerminalChildFailure", func() {
+		TestWorkOnTicketStartsFreshSemanticAttemptOnlyForClassifiedTerminalChildFailure(GinkgoT())
+	})
+	It("TestWorkOnTicketRecordsTerminalChildFailureWithTranscriptThenStartsFreshAttempt", func() {
+		TestWorkOnTicketRecordsTerminalChildFailureWithTranscriptThenStartsFreshAttempt(GinkgoT())
+	})
+	It("TestWorkOnTicketDoesNotReplaceUnclassifiedTerminalChildFailure", func() {
+		TestWorkOnTicketDoesNotReplaceUnclassifiedTerminalChildFailure(GinkgoT())
+	})
+	It("TestWorkOnTicketContinuesPastFormerAttemptAndReviewCounts", func() {
+		TestWorkOnTicketContinuesPastFormerAttemptAndReviewCounts(GinkgoT())
+	})
+	It("TestWorkOnTicketReconcilesSameAttemptAfterLostAgentResponse", func() {
+		TestWorkOnTicketReconcilesSameAttemptAfterLostAgentResponse(GinkgoT())
+	})
+	It("TestWorkOnTicketDoesNotProvisionReplacementUntilLostGenerationIsDeleted", func() {
+		TestWorkOnTicketDoesNotProvisionReplacementUntilLostGenerationIsDeleted(GinkgoT())
+	})
+	It("TestWorkOnTicketSerializesSequentialSessionReplacements", func() {
+		TestWorkOnTicketSerializesSequentialSessionReplacements(GinkgoT())
+	})
+	It("TestWorkOnTicketReplacesConsecutiveSessionsDuringRepositoryWork", func() {
+		TestWorkOnTicketReplacesConsecutiveSessionsDuringRepositoryWork(GinkgoT())
+	})
+	It("TestWorkOnTicketReplacesSessionLostDuringRepositoryRestore", func() {
+		TestWorkOnTicketReplacesSessionLostDuringRepositoryRestore(GinkgoT())
+	})
+	It("TestWorkOnTicketRecoversCheckpointedPullRequestAfterSessionLoss", func() {
+		TestWorkOnTicketRecoversCheckpointedPullRequestAfterSessionLoss(GinkgoT())
+	})
+	It("TestWorkOnTicketCleansUpWorkerWhenSessionCreationTimesOut", func() {
+		TestWorkOnTicketCleansUpWorkerWhenSessionCreationTimesOut(GinkgoT())
+	})
+	It("TestWorkOnTicketCancellationBeforeClaimLeavesTicketUntouched", func() {
+		TestWorkOnTicketCancellationBeforeClaimLeavesTicketUntouched(GinkgoT())
+	})
+	It("TestWorkOnTicketCancellationAfterClaimCommitBeforeResponseReopensTicket", func() {
+		TestWorkOnTicketCancellationAfterClaimCommitBeforeResponseReopensTicket(GinkgoT())
+	})
+	It("TestWorkOnTicketCancellationDuringAgentReopensTheOwnedTicket", func() {
+		TestWorkOnTicketCancellationDuringAgentReopensTheOwnedTicket(GinkgoT())
+	})
+	It("TestWorkOnTicketConfirmedMergeWinsLateCancellation", func() {
+		TestWorkOnTicketConfirmedMergeWinsLateCancellation(GinkgoT())
+	})
+	It("TestWorkOnTicketReturnsTypedFenceWhenCanceledPredecessorMerged", func() {
+		TestWorkOnTicketReturnsTypedFenceWhenCanceledPredecessorMerged(GinkgoT())
+	})
+	It("TestWorkOnTicketSemanticDeadlineFailsBeforeStartingAnotherStep", func() {
+		TestWorkOnTicketSemanticDeadlineFailsBeforeStartingAnotherStep(GinkgoT())
+	})
+	It("TestWorkOnTicketRepairsTextConflictOrStaleBaseWithFreshReview", func() {
+		TestWorkOnTicketRepairsTextConflictOrStaleBaseWithFreshReview(GinkgoT())
+	})
+})
+
 // TestWorkOnTicketClaimsBeforeProvisioningGenerationOneAndClonesThroughItsSession
 // holds the first target-run boundary: the Store records ownership before a
 // Run Worker exists, Session creation is the readiness handoff, and clone is
 // the first repository-affine activity on that worker's queue.
-func TestWorkOnTicketClaimsBeforeProvisioningGenerationOneAndClonesThroughItsSession(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketClaimsBeforeProvisioningGenerationOneAndClonesThroughItsSession(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	recorderStore := storefake.New()
 	ticket, err := recorderStore.CreateTicket(ctx, "target run", "clone the repository", nil)
@@ -78,8 +193,8 @@ func TestWorkOnTicketClaimsBeforeProvisioningGenerationOneAndClonesThroughItsSes
 // target happy path. The Store is the public durable seam: every primary
 // operation owns one ordered Step, only agent Steps own Attempts, and a
 // confirmed squash merge makes the still-owned Ticket done before teardown.
-func TestWorkOnTicketConfirmsMergeBeforeBestEffortTeardown(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketConfirmsMergeBeforeBestEffortTeardown(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	recorderStore := storefake.New()
 	ticket, err := recorderStore.CreateTicket(ctx, "target run", "finish the ticket", nil)
@@ -188,8 +303,8 @@ func TestWorkOnTicketConfirmsMergeBeforeBestEffortTeardown(t *testing.T) {
 	}
 }
 
-func TestWorkOnTicketDerivesTheRunIdentityFromItsTemporalExecution(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketDerivesTheRunIdentityFromItsTemporalExecution(t testing.TB) {
+	runParallel(t)
 	suite := &testsuite.WorkflowTestSuite{}
 	env := suite.NewTestWorkflowEnvironment()
 	var claimed store.ClaimRunInput
@@ -219,8 +334,8 @@ func TestWorkOnTicketDerivesTheRunIdentityFromItsTemporalExecution(t *testing.T)
 // implement Step must be a new durable Step but continue the surviving
 // generation's implementer thread, then send the new authoritative head
 // through CI and a fresh review before merge.
-func TestWorkOnTicketRepairsRedCIThenReviewsTheNewHead(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketRepairsRedCIThenReviewsTheNewHead(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	recorderStore := storefake.New()
 	ticket, err := recorderStore.CreateTicket(ctx, "repair red CI", "make CI green", nil)
@@ -298,8 +413,8 @@ func TestWorkOnTicketRepairsRedCIThenReviewsTheNewHead(t *testing.T) {
 // A blocking review is completed, authoritative feedback. It must reopen the
 // surviving implementer with both the reviewed head and structured findings,
 // then bind CI and an independent reviewer to the new head before merge.
-func TestWorkOnTicketRepairsBlockingReviewWithFreshCandidateAuthorization(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketRepairsBlockingReviewWithFreshCandidateAuthorization(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "review feedback", "repair the finding", nil)
@@ -373,8 +488,8 @@ func TestWorkOnTicketRepairsBlockingReviewWithFreshCandidateAuthorization(t *tes
 	}
 }
 
-func TestWorkOnTicketNeverMergesAHeadChangedAfterReview(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketNeverMergesAHeadChangedAfterReview(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	recorderStore := storefake.New()
 	ticket, err := recorderStore.CreateTicket(ctx, "head changed", "review the new head", nil)
@@ -423,7 +538,7 @@ func TestWorkOnTicketNeverMergesAHeadChangedAfterReview(t *testing.T) {
 // A repository ruleset can be repaired by an operator without changing the
 // reviewed candidate. Native activity retry keeps that repair window inside
 // the one Merge Step, bounded by the Run's remaining semantic deadline.
-func TestWorkOnTicketRetriesRepairableMergeFailuresWithinOneStepUntilSemanticDeadline(t *testing.T) {
+func TestWorkOnTicketRetriesRepairableMergeFailuresWithinOneStepUntilSemanticDeadline(t testing.TB) {
 	for _, tc := range []struct {
 		name         string
 		activityType string
@@ -431,59 +546,58 @@ func TestWorkOnTicketRetriesRepairableMergeFailuresWithinOneStepUntilSemanticDea
 		{name: "ruleset", activityType: activities.ErrTypeRuleset},
 		{name: "availability", activityType: activities.ErrTypeTransient},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			s := storefake.New()
-			ticket, err := s.CreateTicket(ctx, "merge repair", "wait for the repairable merge failure", nil)
-			if err != nil {
-				t.Fatalf("CreateTicket: %v", err)
-			}
-			in := workflows.WorkOnTicketInput{TicketID: ticket.ID, RunID: "019fb901-0000-7000-8000-000000000025", Policy: work.DefaultTargetRunPolicy(), CloneURL: "https://github.com/example/repository.git", Model: work.Model{Name: "gpt-5", Effort: "high"}}
-			h := newWorkOnTicketHarness(t, s)
-			mergeTries := 0
-			var mergeScheduleToClose time.Duration
-			h.env.SetOnActivityStartedListener(func(info *activity.Info, _ context.Context, _ converter.EncodedValues) {
-				if info.ActivityType.Name == "TargetMergePullRequest" {
-					mergeScheduleToClose = info.ScheduleToCloseTimeout
-				}
-			})
-			h.mergeResult = func(activities.TargetMergePullRequestInput) (work.PullRequestMergeResult, error) {
-				mergeTries++
-				if mergeTries == 1 {
-					return work.PullRequestMergeResult{}, temporal.NewApplicationError("repairable merge failure", tc.activityType, nil)
-				}
-				return work.PullRequestMergeResult{Outcome: work.PullRequestMergeConfirmed, MergeSHA: "M1"}, nil
-			}
-
-			h.run(in)
-			if err := h.env.GetWorkflowError(); err != nil {
-				t.Fatalf("WorkOnTicket: %v", err)
-			}
-			if mergeTries != 2 || len(h.mergeInputs) != 2 || h.mergeInputs[0].ExpectedHeadSHA != "H1" || h.mergeInputs[1].ExpectedHeadSHA != "H1" {
-				t.Fatalf("%s retries = %d, merge inputs = %+v; want two exact-H1 attempts", tc.name, mergeTries, h.mergeInputs)
-			}
-			if mergeScheduleToClose != in.Policy.SemanticDeadline {
-				t.Fatalf("merge ScheduleToClose = %s, want remaining semantic deadline %s", mergeScheduleToClose, in.Policy.SemanticDeadline)
-			}
-			detail, err := s.TargetRunDetail(ctx, in.RunID)
-			if err != nil {
-				t.Fatalf("TargetRunDetail: %v", err)
-			}
-			var merges, attempts int
-			for _, step := range detail.Steps {
-				if step.Step.Kind == work.StepMergePullRequest {
-					merges++
-				}
-				attempts += len(step.Attempts)
-			}
-			if merges != 1 || attempts != 3 || detail.Run.TargetOutcome != work.RunOutcomeSucceeded {
-				t.Fatalf("%s repair result = %+v, want one merge step, three agent attempts, and success", tc.name, detail)
+		tc := tc
+		ctx := context.Background()
+		s := storefake.New()
+		ticket, err := s.CreateTicket(ctx, "merge repair", "wait for the repairable merge failure", nil)
+		if err != nil {
+			t.Fatalf("CreateTicket: %v", err)
+		}
+		in := workflows.WorkOnTicketInput{TicketID: ticket.ID, RunID: "019fb901-0000-7000-8000-000000000025", Policy: work.DefaultTargetRunPolicy(), CloneURL: "https://github.com/example/repository.git", Model: work.Model{Name: "gpt-5", Effort: "high"}}
+		h := newWorkOnTicketHarness(t, s)
+		mergeTries := 0
+		var mergeScheduleToClose time.Duration
+		h.env.SetOnActivityStartedListener(func(info *activity.Info, _ context.Context, _ converter.EncodedValues) {
+			if info.ActivityType.Name == "TargetMergePullRequest" {
+				mergeScheduleToClose = info.ScheduleToCloseTimeout
 			}
 		})
+		h.mergeResult = func(activities.TargetMergePullRequestInput) (work.PullRequestMergeResult, error) {
+			mergeTries++
+			if mergeTries == 1 {
+				return work.PullRequestMergeResult{}, temporal.NewApplicationError("repairable merge failure", tc.activityType, nil)
+			}
+			return work.PullRequestMergeResult{Outcome: work.PullRequestMergeConfirmed, MergeSHA: "M1"}, nil
+		}
+
+		h.run(in)
+		if err := h.env.GetWorkflowError(); err != nil {
+			t.Fatalf("WorkOnTicket: %v", err)
+		}
+		if mergeTries != 2 || len(h.mergeInputs) != 2 || h.mergeInputs[0].ExpectedHeadSHA != "H1" || h.mergeInputs[1].ExpectedHeadSHA != "H1" {
+			t.Fatalf("%s retries = %d, merge inputs = %+v; want two exact-H1 attempts", tc.name, mergeTries, h.mergeInputs)
+		}
+		if mergeScheduleToClose != in.Policy.SemanticDeadline {
+			t.Fatalf("merge ScheduleToClose = %s, want remaining semantic deadline %s", mergeScheduleToClose, in.Policy.SemanticDeadline)
+		}
+		detail, err := s.TargetRunDetail(ctx, in.RunID)
+		if err != nil {
+			t.Fatalf("TargetRunDetail: %v", err)
+		}
+		var merges, attempts int
+		for _, step := range detail.Steps {
+			if step.Step.Kind == work.StepMergePullRequest {
+				merges++
+			}
+			attempts += len(step.Attempts)
+		}
+		if merges != 1 || attempts != 3 || detail.Run.TargetOutcome != work.RunOutcomeSucceeded {
+			t.Fatalf("%s repair result = %+v, want one merge step, three agent attempts, and success", tc.name, detail)
+		}
 	}
 }
 
-func TestWorkOnTicketFinalizesMergeRetryDeadline(t *testing.T) {
+func TestWorkOnTicketFinalizesMergeRetryDeadline(t testing.TB) {
 	for _, tc := range []struct {
 		name         string
 		activityType string
@@ -493,53 +607,52 @@ func TestWorkOnTicketFinalizesMergeRetryDeadline(t *testing.T) {
 		{name: "ruleset", activityType: activities.ErrTypeRuleset, failure: work.RunFailureGitHubRuleset, result: `{"kind":"github_ruleset"}`},
 		{name: "availability", activityType: activities.ErrTypeTransient, failure: work.RunFailureGitHubUnavailable, result: `{"kind":"github_unavailable"}`},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			s := storefake.New()
-			ticket, err := s.CreateTicket(ctx, "merge retry deadline", "terminalize exhausted repair window", nil)
-			if err != nil {
-				t.Fatalf("CreateTicket: %v", err)
-			}
-			in := workflows.WorkOnTicketInput{TicketID: ticket.ID, RunID: "019fb901-0000-7000-8000-000000000026", Policy: work.DefaultTargetRunPolicy(), CloneURL: "https://github.com/example/repository.git", Model: work.Model{Name: "gpt-5", Effort: "high"}}
-			h := newWorkOnTicketHarness(t, s)
-			h.mergeResult = func(activities.TargetMergePullRequestInput) (work.PullRequestMergeResult, error) {
-				lastFailure := temporal.NewApplicationError("merge remains unavailable", tc.activityType, nil)
-				return work.PullRequestMergeResult{}, temporal.NewTimeoutError(enumspb.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, lastFailure)
-			}
+		tc := tc
+		ctx := context.Background()
+		s := storefake.New()
+		ticket, err := s.CreateTicket(ctx, "merge retry deadline", "terminalize exhausted repair window", nil)
+		if err != nil {
+			t.Fatalf("CreateTicket: %v", err)
+		}
+		in := workflows.WorkOnTicketInput{TicketID: ticket.ID, RunID: "019fb901-0000-7000-8000-000000000026", Policy: work.DefaultTargetRunPolicy(), CloneURL: "https://github.com/example/repository.git", Model: work.Model{Name: "gpt-5", Effort: "high"}}
+		h := newWorkOnTicketHarness(t, s)
+		h.mergeResult = func(activities.TargetMergePullRequestInput) (work.PullRequestMergeResult, error) {
+			lastFailure := temporal.NewApplicationError("merge remains unavailable", tc.activityType, nil)
+			return work.PullRequestMergeResult{}, temporal.NewTimeoutError(enumspb.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, lastFailure)
+		}
 
-			h.run(in)
-			var application *temporal.ApplicationError
-			if err := h.env.GetWorkflowError(); !errors.As(err, &application) || application.Type() != tc.activityType || !application.NonRetryable() {
-				t.Fatalf("WorkOnTicket error = %v, want non-retryable %s", err, tc.activityType)
+		h.run(in)
+		var application *temporal.ApplicationError
+		if err := h.env.GetWorkflowError(); !errors.As(err, &application) || application.Type() != tc.activityType || !application.NonRetryable() {
+			t.Fatalf("WorkOnTicket error = %v, want non-retryable %s", err, tc.activityType)
+		}
+		got, err := s.Ticket(ctx, ticket.ID)
+		if err != nil {
+			t.Fatalf("Ticket: %v", err)
+		}
+		if got.State != store.TicketFailed || got.ActiveRunID != "" {
+			t.Fatalf("merge-deadline ticket = %+v, want failed with no active owner", got)
+		}
+		detail, err := s.TargetRunDetail(ctx, in.RunID)
+		if err != nil {
+			t.Fatalf("TargetRunDetail: %v", err)
+		}
+		if detail.Run.TargetOutcome != work.RunOutcomeFailed || detail.Run.TargetFailure != tc.failure {
+			t.Fatalf("merge-deadline run = %+v, want failed %s", detail.Run, tc.failure)
+		}
+		for _, step := range detail.Steps {
+			if step.Step.Kind == work.StepMergePullRequest && (step.Step.State != work.StepStateFailed || string(step.Step.Result) != tc.result) {
+				t.Fatalf("merge-deadline step = %+v, want failed %s", step.Step, tc.result)
 			}
-			got, err := s.Ticket(ctx, ticket.ID)
-			if err != nil {
-				t.Fatalf("Ticket: %v", err)
-			}
-			if got.State != store.TicketFailed || got.ActiveRunID != "" {
-				t.Fatalf("merge-deadline ticket = %+v, want failed with no active owner", got)
-			}
-			detail, err := s.TargetRunDetail(ctx, in.RunID)
-			if err != nil {
-				t.Fatalf("TargetRunDetail: %v", err)
-			}
-			if detail.Run.TargetOutcome != work.RunOutcomeFailed || detail.Run.TargetFailure != tc.failure {
-				t.Fatalf("merge-deadline run = %+v, want failed %s", detail.Run, tc.failure)
-			}
-			for _, step := range detail.Steps {
-				if step.Step.Kind == work.StepMergePullRequest && (step.Step.State != work.StepStateFailed || string(step.Step.Result) != tc.result) {
-					t.Fatalf("merge-deadline step = %+v, want failed %s", step.Step, tc.result)
-				}
-			}
-		})
+		}
 	}
 }
 
 // A terminal recording activity can exhaust after the merge retry window
 // closes. The deferred finalizer must retry the same classified outcome rather
 // than strand ownership or rewrite it as a generic persistence failure.
-func TestWorkOnTicketRetriesFailedMergeTerminalRecording(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketRetriesFailedMergeTerminalRecording(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "merge terminal retry", "persist the classified outcome", nil)
@@ -590,8 +703,8 @@ func TestWorkOnTicketRetriesFailedMergeTerminalRecording(t *testing.T) {
 	}
 }
 
-func TestWorkOnTicketRetriesPendingCIInsideOneStep(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketRetriesPendingCIInsideOneStep(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "pending CI", "wait", nil)
@@ -632,8 +745,8 @@ func TestWorkOnTicketRetriesPendingCIInsideOneStep(t *testing.T) {
 // A ScheduleToClose timeout means Temporal has exhausted the complete CI
 // observation window. It is terminal even when the broader semantic deadline
 // still has time left: leaving the await-ci Step running strands the Ticket.
-func TestWorkOnTicketFinalizesCIScheduleToCloseTimeoutImmediately(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketFinalizesCIScheduleToCloseTimeoutImmediately(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "CI schedule timeout", "finish durable failure", nil)
@@ -680,8 +793,8 @@ func TestWorkOnTicketFinalizesCIScheduleToCloseTimeoutImmediately(t *testing.T) 
 	}
 }
 
-func TestWorkOnTicketClassifiesAnotherCITimeoutAsInfrastructure(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketClassifiesAnotherCITimeoutAsInfrastructure(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "CI retryable timeout", "do not conflate timeout classes", nil)
@@ -731,8 +844,8 @@ func TestWorkOnTicketClassifiesAnotherCITimeoutAsInfrastructure(t *testing.T) {
 // Credential renewal is supporting machinery for one authorized execution,
 // not another Agent Attempt. A long-running implement child must remain the
 // same execution while credentials renew at thirty and sixty minutes.
-func TestWorkOnTicketRenewsCredentialDuringOneActiveAgentAttempt(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketRenewsCredentialDuringOneActiveAgentAttempt(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "renew credentials", "keep Git authenticated", nil)
@@ -764,8 +877,8 @@ func TestWorkOnTicketRenewsCredentialDuringOneActiveAgentAttempt(t *testing.T) {
 // Model-turn retries belong to AgentWorkflow. WorkOnTicket starts one child for
 // an authorized Attempt and passes the immutable retry policy through instead
 // of scheduling or retrying a direct agent activity itself.
-func TestWorkOnTicketDelegatesModelTurnRetriesToOneChildPerAttempt(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketDelegatesModelTurnRetriesToOneChildPerAttempt(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "retry agent", "reconcile it", nil)
@@ -798,8 +911,8 @@ func TestWorkOnTicketDelegatesModelTurnRetriesToOneChildPerAttempt(t *testing.T)
 // Every authorized durable Attempt owns exactly one bounded child identity.
 // The identity is also the child's cache/evidence namespace, so retries and
 // artifacts cannot drift onto a different semantic execution.
-func TestWorkOnTicketMapsAuthorizedAttemptsToBoundedChildIdentities(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketMapsAuthorizedAttemptsToBoundedChildIdentities(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "agent scheduling", "schedule the attempt", nil)
@@ -827,8 +940,8 @@ func TestWorkOnTicketMapsAuthorizedAttemptsToBoundedChildIdentities(t *testing.T
 // The child owns the acceptance retry shape. WorkOnTicket must copy the full
 // policy into every child input without expanding ten model-turn tries into
 // ten parent-level executions.
-func TestWorkOnTicketCarriesAcceptanceBackoffIntoEveryChild(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketCarriesAcceptanceBackoffIntoEveryChild(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "agent retry cap", "bound unavailable model retries", nil)
@@ -854,8 +967,8 @@ func TestWorkOnTicketCarriesAcceptanceBackoffIntoEveryChild(t *testing.T) {
 // Infrastructure can fail after an Agent Attempt is authorized but before an
 // agent activity runs. Terminalization must close both levels as failed so the
 // durable history never presents abandoned work as running or completed.
-func TestWorkOnTicketFailsRunningAttemptWithItsActiveStep(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketFailsRunningAttemptWithItsActiveStep(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "attempt infrastructure failure", "close active history", nil)
@@ -883,8 +996,8 @@ func TestWorkOnTicketFailsRunningAttemptWithItsActiveStep(t *testing.T) {
 
 // AgentWorkflow owns the result until its evidence is durable. WorkOnTicket
 // must finalize each child result before it completes the enclosing Step.
-func TestWorkOnTicketFinalizesChildEvidenceBeforeCompletingAgentStep(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketFinalizesChildEvidenceBeforeCompletingAgentStep(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "persist child evidence", "finalize before completing the step", nil)
@@ -914,8 +1027,8 @@ func TestWorkOnTicketFinalizesChildEvidenceBeforeCompletingAgentStep(t *testing.
 // WorkOnTicket must schedule the evidence boundary under its explicit stable
 // wire name so worker registration order can never route the evidence payload
 // to the prompt decoder.
-func TestWorkOnTicketNamesTheTargetEvidenceActivityUnambiguously(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketNamesTheTargetEvidenceActivityUnambiguously(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "name target evidence", "record the child result", nil)
@@ -945,8 +1058,8 @@ func TestWorkOnTicketNamesTheTargetEvidenceActivityUnambiguously(t *testing.T) {
 
 // A classified terminal child failure ends one semantic execution and starts
 // one fresh Attempt under the same Step.
-func TestWorkOnTicketStartsFreshSemanticAttemptOnlyForClassifiedTerminalChildFailure(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketStartsFreshSemanticAttemptOnlyForClassifiedTerminalChildFailure(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "unresumable attempt", "authorize a replacement", nil)
@@ -992,8 +1105,8 @@ func TestWorkOnTicketStartsFreshSemanticAttemptOnlyForClassifiedTerminalChildFai
 
 // A failed child can still have a transcript. Its durable evidence must not
 // serialize the absent StageOutput before the parent starts the next Attempt.
-func TestWorkOnTicketRecordsTerminalChildFailureWithTranscriptThenStartsFreshAttempt(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketRecordsTerminalChildFailureWithTranscriptThenStartsFreshAttempt(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "unresumable attempt with evidence", "retain the failed transcript", nil)
@@ -1046,8 +1159,8 @@ func TestWorkOnTicketRecordsTerminalChildFailureWithTranscriptThenStartsFreshAtt
 // A terminal child failure outside the replacement vocabulary ends the Run
 // after recording its one failed Attempt. It must not silently schedule a
 // second semantic execution under the same Step.
-func TestWorkOnTicketDoesNotReplaceUnclassifiedTerminalChildFailure(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketDoesNotReplaceUnclassifiedTerminalChildFailure(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "model exhausted", "do not retry semantically", nil)
@@ -1087,8 +1200,8 @@ func TestWorkOnTicketDoesNotReplaceUnclassifiedTerminalChildFailure(t *testing.T
 	t.Fatal("target history did not retain the implement Step")
 }
 
-func TestWorkOnTicketContinuesPastFormerAttemptAndReviewCounts(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketContinuesPastFormerAttemptAndReviewCounts(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "unbounded revisions", "keep working until the deadline or a clean review", nil)
@@ -1136,8 +1249,8 @@ func TestWorkOnTicketContinuesPastFormerAttemptAndReviewCounts(t *testing.T) {
 // completed. The replacement must reconcile the same durable Attempt before
 // authorizing another one. Here generation two returns the checkpointed output,
 // so only generation one represents a provider call.
-func TestWorkOnTicketReconcilesSameAttemptAfterLostAgentResponse(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketReconcilesSameAttemptAfterLostAgentResponse(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "lost session", "recover the active run worker", nil)
@@ -1195,8 +1308,8 @@ func TestWorkOnTicketReconcilesSameAttemptAfterLostAgentResponse(t *testing.T) {
 	}
 }
 
-func TestWorkOnTicketDoesNotProvisionReplacementUntilLostGenerationIsDeleted(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketDoesNotProvisionReplacementUntilLostGenerationIsDeleted(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "blocked replacement", "keep one live worker", nil)
@@ -1224,8 +1337,8 @@ func TestWorkOnTicketDoesNotProvisionReplacementUntilLostGenerationIsDeleted(t *
 // Replacement generations serialize, but a later loss after the prior
 // recovery completed may advance the same Run again without resetting any
 // budget or leaving the preceding generation active.
-func TestWorkOnTicketSerializesSequentialSessionReplacements(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketSerializesSequentialSessionReplacements(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "two lost sessions", "recover twice", nil)
@@ -1278,8 +1391,8 @@ func TestWorkOnTicketSerializesSequentialSessionReplacements(t *testing.T) {
 // Repository-affine operations use the same serialized replacement policy as
 // agent execution. Consecutive Session losses may advance generations until
 // the absolute deadline, but never leave two workers live or create a new Step.
-func TestWorkOnTicketReplacesConsecutiveSessionsDuringRepositoryWork(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketReplacesConsecutiveSessionsDuringRepositoryWork(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "repository session losses", "recover sync twice", nil)
@@ -1326,8 +1439,8 @@ func TestWorkOnTicketReplacesConsecutiveSessionsDuringRepositoryWork(t *testing.
 // A replacement Session can itself disappear while restoring the repository.
 // Recovery must delete that generation before provisioning the next one and
 // retry restoration until one generation is ready for the primary operation.
-func TestWorkOnTicketReplacesSessionLostDuringRepositoryRestore(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketReplacesSessionLostDuringRepositoryRestore(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "restore session loss", "recover the replacement", nil)
@@ -1371,8 +1484,8 @@ func TestWorkOnTicketReplacesSessionLostDuringRepositoryRestore(t *testing.T) {
 // A durable Git/PR checkpoint is the answer after a lost activity response:
 // recovery may invoke the activity again, but it must return the checkpointed
 // result instead of repeating the GitHub write or moving back to an older head.
-func TestWorkOnTicketRecoversCheckpointedPullRequestAfterSessionLoss(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketRecoversCheckpointedPullRequestAfterSessionLoss(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "checkpointed pull request", "do not repeat sync", nil)
@@ -1442,8 +1555,8 @@ func TestWorkOnTicketRecoversCheckpointedPullRequestAfterSessionLoss(t *testing.
 // A provisioned worker without a Session is not a successful Run. Session
 // creation timeout must durably fail the owned Run as unavailable and hand
 // that generation to bounded cleanup.
-func TestWorkOnTicketCleansUpWorkerWhenSessionCreationTimesOut(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketCleansUpWorkerWhenSessionCreationTimesOut(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "session timeout", "clean up the unclaimed worker", nil)
@@ -1482,8 +1595,8 @@ func TestWorkOnTicketCleansUpWorkerWhenSessionCreationTimesOut(t *testing.T) {
 // Cancellation before the ownership claim has committed must leave the
 // Ticket untouched. In particular, the disconnected cancellation finalizer
 // must not invent a canceled Run that was never admitted.
-func TestWorkOnTicketCancellationBeforeClaimLeavesTicketUntouched(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketCancellationBeforeClaimLeavesTicketUntouched(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "cancel before claim", "do not admit this run", nil)
@@ -1513,8 +1626,8 @@ func TestWorkOnTicketCancellationBeforeClaimLeavesTicketUntouched(t *testing.T) 
 // The claim transaction may commit before Temporal observes a canceled
 // activity response. Cancellation reconciles by deterministic Run identity so
 // that this narrow race cannot strand the Ticket as active.
-func TestWorkOnTicketCancellationAfterClaimCommitBeforeResponseReopensTicket(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketCancellationAfterClaimCommitBeforeResponseReopensTicket(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "claim response lost", "reconcile cancellation", nil)
@@ -1551,8 +1664,8 @@ func TestWorkOnTicketCancellationAfterClaimCommitBeforeResponseReopensTicket(t *
 // Cancellation after claim is durable core work: it disconnects from the
 // canceled execution, returns only the owned Ticket to open, and tears down
 // the Run Worker only after the in-flight child acknowledges cancellation.
-func TestWorkOnTicketCancellationDuringAgentReopensTheOwnedTicket(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketCancellationDuringAgentReopensTheOwnedTicket(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "cancel active run", "stop during implementation", nil)
@@ -1600,8 +1713,8 @@ func TestWorkOnTicketCancellationDuringAgentReopensTheOwnedTicket(t *testing.T) 
 // work. A late workflow cancellation cannot replace that success with a
 // canceled outcome, and disconnected teardown still receives its bounded
 // cleanup attempt afterward.
-func TestWorkOnTicketConfirmedMergeWinsLateCancellation(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketConfirmedMergeWinsLateCancellation(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "late cancellation", "merge is authoritative", nil)
@@ -1640,8 +1753,8 @@ func TestWorkOnTicketConfirmedMergeWinsLateCancellation(t *testing.T) {
 // Ticket but a fence for this workflow execution. The successor must report a
 // typed non-success outcome without reopening the Ticket or rewriting either
 // Run's durable terminal state.
-func TestWorkOnTicketReturnsTypedFenceWhenCanceledPredecessorMerged(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketReturnsTypedFenceWhenCanceledPredecessorMerged(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "predecessor merged", "fence the successor", nil)
@@ -1708,8 +1821,8 @@ func TestWorkOnTicketReturnsTypedFenceWhenCanceledPredecessorMerged(t *testing.T
 
 // The semantic deadline forbids the next primary operation while preserving
 // the hard-deadline reserve for durable failed finalization and cleanup.
-func TestWorkOnTicketSemanticDeadlineFailsBeforeStartingAnotherStep(t *testing.T) {
-	t.Parallel()
+func TestWorkOnTicketSemanticDeadlineFailsBeforeStartingAnotherStep(t testing.TB) {
+	runParallel(t)
 	ctx := context.Background()
 	s := storefake.New()
 	ticket, err := s.CreateTicket(ctx, "semantic deadline", "reserve finalization time", nil)
@@ -1755,63 +1868,62 @@ func TestWorkOnTicketSemanticDeadlineFailsBeforeStartingAnotherStep(t *testing.T
 	}
 }
 
-func TestWorkOnTicketRepairsTextConflictOrStaleBaseWithFreshReview(t *testing.T) {
+func TestWorkOnTicketRepairsTextConflictOrStaleBaseWithFreshReview(t testing.TB) {
 	for _, outcome := range []work.PullRequestMergeOutcome{work.PullRequestMergeTextConflict, work.PullRequestMergeBaseRefreshRequired} {
-		t.Run(string(outcome), func(t *testing.T) {
-			ctx := context.Background()
-			s := storefake.New()
-			ticket, err := s.CreateTicket(ctx, "merge feedback", "repair it", nil)
-			if err != nil {
-				t.Fatalf("CreateTicket: %v", err)
+		outcome := outcome
+		ctx := context.Background()
+		s := storefake.New()
+		ticket, err := s.CreateTicket(ctx, "merge feedback", "repair it", nil)
+		if err != nil {
+			t.Fatalf("CreateTicket: %v", err)
+		}
+		in := workflows.WorkOnTicketInput{TicketID: ticket.ID, RunID: "019fb901-0000-7000-8000-000000000006", Policy: work.DefaultTargetRunPolicy(), CloneURL: "https://github.com/example/repository.git", Model: work.Model{Name: "gpt-5", Effort: "high"}}
+		h := newWorkOnTicketHarness(t, s)
+		h.sync = func(input activities.TargetSyncPullRequestInput) (work.PullRequest, error) {
+			head := "H1"
+			if len(h.syncInputs) == 2 {
+				head = "H2"
 			}
-			in := workflows.WorkOnTicketInput{TicketID: ticket.ID, RunID: "019fb901-0000-7000-8000-000000000006", Policy: work.DefaultTargetRunPolicy(), CloneURL: "https://github.com/example/repository.git", Model: work.Model{Name: "gpt-5", Effort: "high"}}
-			h := newWorkOnTicketHarness(t, s)
-			h.sync = func(input activities.TargetSyncPullRequestInput) (work.PullRequest, error) {
-				head := "H1"
-				if len(h.syncInputs) == 2 {
-					head = "H2"
-				}
-				position := input.Step
-				position.PushedHead, position.PullRequestNumber, position.PullRequestNodeID = head, 1, "PR_node1"
-				if err := h.checkpointRepositoryStep(position); err != nil {
-					return work.PullRequest{}, err
-				}
-				return work.PullRequest{Number: 1, NodeID: "PR_node1", HeadSHA: head, Draft: true}, nil
+			position := input.Step
+			position.PushedHead, position.PullRequestNumber, position.PullRequestNodeID = head, 1, "PR_node1"
+			if err := h.checkpointRepositoryStep(position); err != nil {
+				return work.PullRequest{}, err
 			}
-			h.awaitCI = func(input activities.TargetAwaitCIInput) (activities.AwaitCIOutput, error) {
-				if err := h.checkpointRepositoryStep(input.Step); err != nil {
-					return activities.AwaitCIOutput{}, err
-				}
-				return activities.AwaitCIOutput{CommitSHA: input.CI.CommitSHA, Green: true}, nil
+			return work.PullRequest{Number: 1, NodeID: "PR_node1", HeadSHA: head, Draft: true}, nil
+		}
+		h.awaitCI = func(input activities.TargetAwaitCIInput) (activities.AwaitCIOutput, error) {
+			if err := h.checkpointRepositoryStep(input.Step); err != nil {
+				return activities.AwaitCIOutput{}, err
 			}
-			h.mergeResult = func(input activities.TargetMergePullRequestInput) (work.PullRequestMergeResult, error) {
-				if len(h.mergeInputs) == 1 {
-					return work.PullRequestMergeResult{Outcome: outcome, PullRequest: work.PullRequest{Number: 1, NodeID: "PR_node1", HeadSHA: "H1", BaseSHA: "B2"}, Diagnostic: "reconcile the branch"}, nil
-				}
-				return work.PullRequestMergeResult{Outcome: work.PullRequestMergeConfirmed, MergeSHA: "M2"}, nil
+			return activities.AwaitCIOutput{CommitSHA: input.CI.CommitSHA, Green: true}, nil
+		}
+		h.mergeResult = func(input activities.TargetMergePullRequestInput) (work.PullRequestMergeResult, error) {
+			if len(h.mergeInputs) == 1 {
+				return work.PullRequestMergeResult{Outcome: outcome, PullRequest: work.PullRequest{Number: 1, NodeID: "PR_node1", HeadSHA: "H1", BaseSHA: "B2"}, Diagnostic: "reconcile the branch"}, nil
 			}
-			h.run(in)
-			if err := h.env.GetWorkflowError(); err != nil {
-				t.Fatalf("WorkOnTicket: %v", err)
+			return work.PullRequestMergeResult{Outcome: work.PullRequestMergeConfirmed, MergeSHA: "M2"}, nil
+		}
+		h.run(in)
+		if err := h.env.GetWorkflowError(); err != nil {
+			t.Fatalf("WorkOnTicket: %v", err)
+		}
+		implements := agentChildrenAtStage(h.agentInputs, work.StageImplement)
+		reviews := agentChildrenAtStage(h.agentInputs, work.StageReview)
+		if len(implements) != 2 || implements[1].Seed == nil || implements[1].Seed.SourceIdentity != implements[0].Identity || implements[1].Attempt.PromptContext.Merge == nil || implements[1].Attempt.PromptContext.Merge.Outcome != outcome || implements[1].Attempt.PromptContext.Merge.CurrentBaseSHA != "B2" || implements[1].Attempt.PromptContext.Merge.Diagnostic != "reconcile the branch" {
+			t.Fatalf("merge-feedback implementation = %+v, want seeded typed %s handoff", implements, outcome)
+		}
+		if len(reviews) != 2 || reviews[0].Attempt.PromptContext.CandidateHeadSHA != "H1" || reviews[1].Attempt.PromptContext.CandidateHeadSHA != "H2" || reviews[0].Seed != nil || reviews[1].Seed != nil {
+			t.Fatalf("reviews = %+v, want fresh H1 then H2 reviewers", reviews)
+		}
+		detail, err := s.TargetRunDetail(ctx, in.RunID)
+		if err != nil {
+			t.Fatalf("TargetRunDetail: %v", err)
+		}
+		for _, step := range detail.Steps {
+			if step.Step.Kind == work.StepMergePullRequest && step.Step.State != work.StepStateCompleted {
+				t.Fatalf("feedback merge step = %+v, want completed history rather than a stranded running step", step.Step)
 			}
-			implements := agentChildrenAtStage(h.agentInputs, work.StageImplement)
-			reviews := agentChildrenAtStage(h.agentInputs, work.StageReview)
-			if len(implements) != 2 || implements[1].Seed == nil || implements[1].Seed.SourceIdentity != implements[0].Identity || implements[1].Attempt.PromptContext.Merge == nil || implements[1].Attempt.PromptContext.Merge.Outcome != outcome || implements[1].Attempt.PromptContext.Merge.CurrentBaseSHA != "B2" || implements[1].Attempt.PromptContext.Merge.Diagnostic != "reconcile the branch" {
-				t.Fatalf("merge-feedback implementation = %+v, want seeded typed %s handoff", implements, outcome)
-			}
-			if len(reviews) != 2 || reviews[0].Attempt.PromptContext.CandidateHeadSHA != "H1" || reviews[1].Attempt.PromptContext.CandidateHeadSHA != "H2" || reviews[0].Seed != nil || reviews[1].Seed != nil {
-				t.Fatalf("reviews = %+v, want fresh H1 then H2 reviewers", reviews)
-			}
-			detail, err := s.TargetRunDetail(ctx, in.RunID)
-			if err != nil {
-				t.Fatalf("TargetRunDetail: %v", err)
-			}
-			for _, step := range detail.Steps {
-				if step.Step.Kind == work.StepMergePullRequest && step.Step.State != work.StepStateCompleted {
-					t.Fatalf("feedback merge step = %+v, want completed history rather than a stranded running step", step.Step)
-				}
-			}
-		})
+		}
 	}
 }
 
