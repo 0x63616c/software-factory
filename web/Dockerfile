@@ -7,7 +7,7 @@ FROM oven/bun:1.2-alpine AS builder
 WORKDIR /app
 
 COPY web/package.json web/bun.lock ./web/
-RUN bun install --frozen-lockfile --ignore-scripts
+RUN bun install --cwd web --frozen-lockfile --ignore-scripts
 COPY tsconfig.json ./tsconfig.json
 COPY web ./web
 RUN bun run --cwd web build
