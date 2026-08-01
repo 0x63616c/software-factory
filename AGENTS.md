@@ -23,6 +23,11 @@ For every task in this repository, also load both:
 - [`docs/style-adoption.md`](/Users/calum/code/github.com/0x63616c/software-factory/docs/style-adoption.md)
 - [`docs/releasing.md`](/Users/calum/code/github.com/0x63616c/software-factory/docs/releasing.md)
 
+For implementation changes in Go, also follow these current conventions:
+- Use `github.com/cockroachdb/errors` for wrapped/error-chain output.
+- Use `internal/retry` for shared retry backoff behavior instead of duplicate loops.
+- Use `github.com/onsi/ginkgo/v2` + `github.com/onsi/gomega` for workflow/activity test suites and keep `_suite_test.go` bootstrap files in place.
+
 ## What this is
 
 A Go Temporal worker that autonomously works Tickets from its own Postgres (ADR-0012).
