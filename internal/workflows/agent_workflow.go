@@ -67,7 +67,6 @@ type AgentWorkflowState struct {
 	UsageMeasured           bool
 	ModelTurns              int
 	ToolCalls               int
-	TurnsSinceContinueAsNew int
 }
 
 // AgentWorkflowResult is the typed result returned to WorkOnTicket.
@@ -216,18 +215,13 @@ func AgentWorkflow(ctx workflow.Context, input AgentWorkflowInput) (workflowResu
 		if !unbounded && result.ModelTurns >= input.LegacyLimits.MaxModelTurns {
 			return terminalLegacyAgentBudgetFailure(result, "model_turns")
 		}
-		continueAsNewAfter := agentContinueAsNewAfterTurns
-		if !unbounded {
-			continueAsNewAfter = input.LegacyLimits.ContinueAsNewAfter
-		}
-		if state.TurnsSinceContinueAsNew >= continueAsNewAfter {
+		if workflow.GetInfo(ctx).GetContinueAsNewSuggested() {
 			state.ConversationRef = conversationRef
 			state.TranscriptRef = result.TranscriptRef
 			state.Usage = result.Usage
 			state.UsageMeasured = result.UsageMeasured
 			state.ModelTurns = result.ModelTurns
 			state.ToolCalls = result.ToolCalls
-			state.TurnsSinceContinueAsNew = 0
 			return result, continueAgentWorkflowAsNew(ctx, input, state, unbounded)
 		}
 		modelTurn := result.ModelTurns + 1
@@ -252,7 +246,6 @@ func AgentWorkflow(ctx workflow.Context, input AgentWorkflowInput) (workflowResu
 		} else if state.ToolsetFingerprint != turn.ToolsetFingerprint {
 			return terminalAgentFailure(result, agent.TerminalFailureInvalidProviderOutcome)
 		}
-		state.TurnsSinceContinueAsNew++
 		result.Usage = result.Usage.Add(turn.Usage)
 		result.UsageMeasured = result.UsageMeasured && turn.UsageMeasured
 		conversationRef = turn.ConversationRef
@@ -516,7 +509,7 @@ func validateAgentInput(input AgentWorkflowInput) error {
 		}
 	}
 	if input.State != nil {
-		if input.State.ModelTurns < 0 || input.State.ToolCalls < 0 || input.State.TurnsSinceContinueAsNew < 0 {
+		if input.State.ModelTurns < 0 || input.State.ToolCalls < 0 {
 			return fmt.Errorf("agent workflow continued counters must not be negative")
 		}
 		if input.State.ToolsetFingerprint == "" {
