@@ -67,6 +67,28 @@ func TestTUIQuitConfirmationFlow(t *testing.T) {
 	}
 }
 
+func TestTUIQuitConfirmationTimeout(t *testing.T) {
+	m := newModel(nil, time.Second, time.Second)
+	m.quitConfirm = true
+	m.quitUntil = time.Now().Add(-time.Second)
+	m.footer = "Press again to quit"
+
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	after := next.(model)
+	if after.quitConfirm {
+		t.Fatalf("expected timed-out quit confirm to reset")
+	}
+	if after.footer != defaultFooter {
+		t.Fatalf("expected default footer after timeout, got %q", after.footer)
+	}
+
+	next, _ = after.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	rearmed := next.(model)
+	if !rearmed.quitConfirm {
+		t.Fatalf("expected quit confirm to re-arm after second ctrl+c")
+	}
+}
+
 func TestTUIInvalidSetStateShowsError(t *testing.T) {
 	m := newModel(nil, time.Second, time.Second)
 	m.tickets = []sf.TicketSummary{{ID: 10, Title: "sample"}}

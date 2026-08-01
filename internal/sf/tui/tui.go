@@ -36,6 +36,7 @@ type model struct {
 	mode        modelMode
 	inputText   string
 	quitConfirm bool
+	quitUntil   time.Time
 	loading     bool
 
 	tickets        []sf.TicketSummary
@@ -48,7 +49,10 @@ type model struct {
 	filterTerm string
 }
 
-const defaultFooter = "h help | ^C quit"
+const (
+	defaultFooter      = "h help | ^C quit"
+	quitConfirmWindow  = 2 * time.Second
+)
 
 type snapshotMsg struct {
 	tickets []sf.TicketSummary
@@ -139,6 +143,10 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 	case tickMsg:
+		if m.quitConfirm && !m.quitUntil.IsZero() && time.Now().After(m.quitUntil) {
+			m.quitConfirm = false
+			m.footer = defaultFooter
+		}
 		m.loading = true
 		return m, fetchSnapshot(m.actions, m.timeout)
 	case snapshotMsg:
@@ -212,17 +220,23 @@ func (m *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 
 	if m.quitConfirm {
-		if msg.String() == "ctrl+c" {
+		if !m.quitUntil.IsZero() && time.Now().After(m.quitUntil) {
+			m.quitConfirm = false
+			m.footer = defaultFooter
+		} else if msg.String() == "ctrl+c" {
 			return tea.Quit
 		}
-		m.quitConfirm = false
-		m.footer = defaultFooter
+		if m.quitConfirm {
+			m.quitConfirm = false
+			m.footer = defaultFooter
+		}
 		return nil
 	}
 
 	switch msg.Type {
 	case tea.KeyCtrlC:
 		m.quitConfirm = true
+		m.quitUntil = time.Now().Add(quitConfirmWindow)
 		m.footer = "Press again to quit"
 	case tea.KeyRunes:
 		switch msg.String() {
