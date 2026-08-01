@@ -33,7 +33,8 @@ dependency-ready Ticket
 ```
 
 See [`docs/system-map.md`](./docs/system-map.md) for the detailed trust and
-execution map.
+execution map and [`docs/configuration.md`](./docs/configuration.md) for the
+operator-owned dependencies, environment contract, and secret boundaries.
 
 ## Contributor commands
 
@@ -56,3 +57,6 @@ Stable SemVer tags publish seven immutable `linux/amd64` images plus a digest
 manifest and checksums. Consumers pin digests; the project does not publish
 moving `latest`, major, or minor aliases. See [releasing](./docs/releasing.md)
 and the [compatibility policy](./docs/compatibility.md).
+
+Contributions follow [`CONTRIBUTING.md`](./CONTRIBUTING.md). Report security
+issues privately as described in [`SECURITY.md`](./SECURITY.md).

@@ -54,10 +54,10 @@ if rg --fixed-strings --quiet ':latest' "$workflow"; then
   exit 1
 fi
 
-for document in README.md docs/releasing.md docs/compatibility.md; do
+for document in README.md CONTRIBUTING.md SECURITY.md docs/configuration.md docs/releasing.md docs/compatibility.md; do
   test -s "$document"
 done
-for link in './docs/releasing.md' './docs/compatibility.md'; do
+for link in './docs/configuration.md' './docs/releasing.md' './docs/compatibility.md' './CONTRIBUTING.md' './SECURITY.md'; do
   rg --fixed-strings --quiet "$link" README.md
 done
 
