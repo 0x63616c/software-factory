@@ -81,6 +81,8 @@ var (
 	privateHelperPayloads = flag.String("capability-private-payload-store", "", "shared temporal payload store")
 )
 
+const sessionLossHeartbeatTimeout = 5 * time.Second
+
 type sessionActivityInput struct {
 	Operation  string
 	MarkerName string
@@ -359,13 +361,13 @@ func TestSessionLossLeavesMainControlAndRoutesAReplacementToItsOwnRoot(t *testin
 	if err != nil {
 		t.Fatalf("starting workflow: %v", err)
 	}
-	waitForFile(t, filepath.Join(rootOne, "repository.marker"), "first private activity marker")
+	waitForWorkflowPhase(t, client, run, "awaiting-worker-loss")
 
+	privateOne.stop(t)
+	privateTwo := startPrivateWorkerProcess(t, server.FrontendHostPort(), payloads, privateQueueTwo, "private-replacement", rootTwo)
 	if err := client.SignalWorkflow(context.Background(), run.GetID(), run.GetRunID(), "continue", "resume"); err != nil {
 		t.Fatalf("signalling workflow after private-worker loss: %v", err)
 	}
-	privateOne.stop(t)
-	privateTwo := startPrivateWorkerProcess(t, server.FrontendHostPort(), payloads, privateQueueTwo, "private-replacement", rootTwo)
 
 	var evidence sessionLossEvidence
 	if err := run.Get(context.Background(), &evidence); err != nil {
@@ -572,7 +574,14 @@ func sessionRestartWorkflow(ctx workflow.Context, in sessionWorkflowInput) (sess
 }
 
 func sessionLossWorkflow(ctx workflow.Context, in sessionLossInput) (sessionLossEvidence, error) {
-	sessionCtx, err := createCapabilitySession(ctx, in.FirstQueue)
+	phase := "creating-session"
+	if err := workflow.SetQueryHandler(ctx, "phase", func() (string, error) {
+		return phase, nil
+	}); err != nil {
+		return sessionLossEvidence{}, fmt.Errorf("registering phase query: %w", err)
+	}
+
+	sessionCtx, err := createCapabilitySessionWithHeartbeat(ctx, in.FirstQueue, sessionLossHeartbeatTimeout)
 	if err != nil {
 		return sessionLossEvidence{}, fmt.Errorf("creating initial session: %w", err)
 	}
@@ -584,6 +593,7 @@ func sessionLossWorkflow(ctx workflow.Context, in sessionLossInput) (sessionLoss
 		return sessionLossEvidence{}, fmt.Errorf("running first private activity: %w", err)
 	}
 	result.Completed = append(result.Completed, result.First)
+	phase = "awaiting-worker-loss"
 	var continueRun string
 	workflow.GetSignalChannel(ctx, "continue").Receive(ctx, &continueRun)
 	read := sessionActivityInput{Operation: "agent", MarkerName: in.MarkerName}
@@ -640,10 +650,14 @@ func mainControlActivityContext(ctx workflow.Context) workflow.Context {
 }
 
 func createCapabilitySession(ctx workflow.Context, privateQueue string) (workflow.Context, error) {
+	return createCapabilitySessionWithHeartbeat(ctx, privateQueue, 90*time.Second)
+}
+
+func createCapabilitySessionWithHeartbeat(ctx workflow.Context, privateQueue string, heartbeatTimeout time.Duration) (workflow.Context, error) {
 	return workflow.CreateSession(privateActivityContext(ctx, privateQueue), &workflow.SessionOptions{
 		ExecutionTimeout: 5 * time.Minute,
-		CreationTimeout: 5 * time.Minute,
-		HeartbeatTimeout: 90 * time.Second,
+		CreationTimeout:  5 * time.Minute,
+		HeartbeatTimeout: heartbeatTimeout,
 	})
 }
 
@@ -935,6 +949,31 @@ func (p *privateWorkerProcess) stop(t *testing.T) {
 		}
 		<-done
 		t.Errorf("private worker process %d did not stop in time; output: %s", p.processID(), p.output.String())
+	}
+}
+
+func waitForWorkflowPhase(t *testing.T, client temporalclient.Client, run temporalclient.WorkflowRun, want string) {
+	t.Helper()
+	deadline := time.NewTimer(10 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(25 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		encoded, err := client.QueryWorkflow(context.Background(), run.GetID(), run.GetRunID(), "phase")
+		if err == nil {
+			var phase string
+			if err := encoded.Get(&phase); err != nil {
+				t.Fatalf("decoding workflow phase: %v", err)
+			}
+			if phase == want {
+				return
+			}
+		}
+		select {
+		case <-deadline.C:
+			t.Fatalf("timed out waiting for workflow phase %q", want)
+		case <-tick.C:
+		}
 	}
 }
 
