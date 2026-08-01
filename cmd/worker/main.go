@@ -12,11 +12,9 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
-	"net/http"
 	"os"
 	"sync/atomic"
 	"time"
@@ -42,6 +40,7 @@ import (
 	temporalapi "github.com/0x63616c/software-factory/internal/clients/temporal"
 	"github.com/0x63616c/software-factory/internal/clock"
 	"github.com/0x63616c/software-factory/internal/config"
+	"github.com/0x63616c/software-factory/internal/httpserver"
 	"github.com/0x63616c/software-factory/internal/prompts"
 	"github.com/0x63616c/software-factory/internal/store"
 	"github.com/0x63616c/software-factory/internal/telemetry"
@@ -49,10 +48,10 @@ import (
 	"github.com/0x63616c/software-factory/internal/workflows"
 )
 
-// shutdownGrace bounds how long the metrics server is given to finish in-flight
+// metricsShutdownGrace bounds how long the metrics server is given to finish in-flight
 // scrapes once the worker has drained. It is short because nothing important
 // happens over HTTP here: the work is on the task queue.
-const shutdownGrace = 5 * time.Second
+const metricsShutdownGrace = 5 * time.Second
 
 // workerStopTimeout is how long a drain waits for in-flight activities after a
 // SIGTERM. It must be set explicitly: worker.Options{} leaves it at the SDK's
@@ -69,7 +68,7 @@ const shutdownGrace = 5 * time.Second
 //
 // The relationship that matters is with the pod's grace period, not with the
 // stage timeout: terminationGracePeriodSeconds must exceed this plus
-// shutdownGrace, or the kubelet SIGKILLs the drain it is waiting for. F1 sets
+// metricsShutdownGrace, or the kubelet SIGKILLs the drain it is waiting for. F1 sets
 // 120s (infra/src/software-factory.ts, TERMINATION_GRACE_SECONDS), which leaves
 // 25s of headroom. TestTheDrainFitsInsideThePodsGracePeriod is what stops
 // either number moving alone.
@@ -141,16 +140,14 @@ func run() error {
 		return fmt.Errorf("listening for metrics on %s (METRICS_ADDR): %w", cfg.MetricsAddr, err)
 	}
 	var activationReady atomic.Bool
-	server := &http.Server{
-		Handler:           observability(registry, activationReady.Load),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-	go func() {
-		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("the metrics server stopped", slog.String("error", err.Error()))
+	metricsServer := httpserver.Serve(listener, observability(registry, activationReady.Load), logger, "worker metrics")
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), metricsShutdownGrace)
+		defer cancel()
+		if err := metricsServer.Shutdown(ctx); err != nil {
+			logger.Warn("the metrics server did not shut down cleanly", slog.String("error", err.Error()))
 		}
 	}()
-	defer stopServer(server, logger)
 
 	temporal, err := temporalapi.Dial(temporalapi.Options{
 		HostPort:  cfg.TemporalHostPort,
@@ -412,17 +409,4 @@ func newTargetRunWorkerControlActivities(
 // are.
 func cloneURL(cfg config.GitHub) string {
 	return fmt.Sprintf("https://github.com/%s/%s.git", cfg.Owner, cfg.Repo)
-}
-
-// stopServer gives in-flight scrapes a moment to finish. Its failure is logged
-// rather than returned: the worker has already drained by the time this runs,
-// and a metrics server that would not close is not a reason to report the run
-// as failed.
-func stopServer(server *http.Server, logger *slog.Logger) {
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownGrace)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		logger.Warn("the metrics server did not shut down cleanly", slog.String("error", err.Error()))
-	}
 }

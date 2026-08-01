@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -29,6 +28,7 @@ import (
 	temporalapi "github.com/0x63616c/software-factory/internal/clients/temporal"
 	"github.com/0x63616c/software-factory/internal/config"
 	"github.com/0x63616c/software-factory/internal/database"
+	"github.com/0x63616c/software-factory/internal/httpserver"
 	"github.com/0x63616c/software-factory/internal/store"
 	"github.com/0x63616c/software-factory/internal/telemetry"
 	"github.com/0x63616c/software-factory/internal/webhook"
@@ -131,9 +131,12 @@ func run() error {
 	}
 	metricsMux := http.NewServeMux()
 	metricsMux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
-	go func() {
-		if err := http.Serve(metricsListener, metricsMux); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("the metrics server stopped", slog.String("error", err.Error()))
+	metricsServer := httpserver.Serve(metricsListener, metricsMux, logger, "API metrics")
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := metricsServer.Shutdown(ctx); err != nil {
+			logger.Warn("the metrics server did not stop cleanly", slog.String("error", err.Error()))
 		}
 	}()
 
@@ -156,22 +159,10 @@ func run() error {
 		return fmt.Errorf("listening for API requests on %s (API_ADDR): %w", cfg.ListenAddr, err)
 	}
 	logger.Info("API starting", slog.String("address", cfg.ListenAddr))
-	server := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
-	serveErr := make(chan error, 1)
-	go func() { serveErr <- server.Serve(listener) }()
 	shutdown, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	select {
-	case err := <-serveErr:
-		if !errors.Is(err, http.ErrServerClosed) {
-			return fmt.Errorf("serving API requests: %w", err)
-		}
-	case <-shutdown.Done():
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			return fmt.Errorf("shutting down API server: %w", err)
-		}
+	if err := httpserver.RunWithShutdownError(shutdown, listener, mux, logger, "API"); err != nil {
+		return fmt.Errorf("serving API requests: %w", err)
 	}
 	return nil
 }
