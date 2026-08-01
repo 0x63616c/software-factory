@@ -15,6 +15,10 @@
 
 For every task in this repository, treat [`docs/SoftwareStyle.md`](/Users/calum/code/github.com/0x63616c/software-factory/docs/SoftwareStyle.md) as the default style guide baseline and load it before making code changes.
 
+For every task in this repository, also load both:
+- [`docs/style-adoption.md`](/Users/calum/code/github.com/0x63616c/software-factory/docs/style-adoption.md)
+- [`docs/releasing.md`](/Users/calum/code/github.com/0x63616c/software-factory/docs/releasing.md)
+
 ## What this is
 
 A Go Temporal worker that autonomously works Tickets from its own Postgres (ADR-0012).
@@ -178,6 +182,9 @@ func TestReplayDispatcherHistory(t *testing.T) {
 
 - TDD test-first for workflows and activities. The dispatcher's concurrency cap, pause and
   reconcile logic are unit tests, not things you find out about in production.
+- New workflow-facing tests should use Ginkgo+Gomega (`github.com/onsi/ginkgo/v2`,
+  `github.com/onsi/gomega`) and live in either `package workflows_test` or `package workflows`
+  suites with matching `_suite_test.go` bootstrap files.
 - Done = `golangci-lint` clean and relevant tests pass, verified by running them, not asserted.
 - Never silence a linter. Fix the code.
 - Stop and ask before anything irreversible or outward-facing.
