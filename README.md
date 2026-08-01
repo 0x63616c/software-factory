@@ -50,5 +50,9 @@ through the real durable `Dispatcher -> WorkOnTicket -> AgentWorkflow` path,
 and writes its machine-checkable result to `.artifacts/e2e/result.json`. It
 requires Docker and `jq`; only the model and GitHub boundaries are faked.
 
-`just release-check VERSION=v0.1.0` remains fail-closed until the release slice
-lands.
+## Releases
+
+Stable SemVer tags publish seven immutable `linux/amd64` images plus a digest
+manifest and checksums. Consumers pin digests; the project does not publish
+moving `latest`, major, or minor aliases. See [releasing](./docs/releasing.md)
+and the [compatibility policy](./docs/compatibility.md).

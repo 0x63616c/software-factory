@@ -30,5 +30,4 @@ e2e:
     ./scripts/e2e.sh
 
 release-check VERSION:
-    @echo "release-check for {{VERSION}} is not implemented yet" >&2
-    @exit 1
+    ./scripts/release-check.sh "{{VERSION}}"

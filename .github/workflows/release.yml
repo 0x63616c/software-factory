@@ -1,0 +1,151 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: software_factory
+          POSTGRES_PASSWORD: software_factory
+          POSTGRES_DB: software_factory
+        options: >-
+          --health-cmd "pg_isready -U software_factory -d software_factory"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require the tagged commit on main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - uses: extractions/setup-just@v3
+      - name: Install pinned generators and linter
+        run: |
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+      - name: Install console dependencies
+        run: bun install --cwd web --frozen-lockfile
+      - name: Validate release contract
+        run: just release-check "VERSION=$GITHUB_REF_NAME"
+      - name: Verify active standalone tree
+        env:
+          SOFTWARE_FACTORY_DATABASE_URL: postgresql://software_factory:software_factory@localhost:5432/software_factory?sslmode=disable
+        run: just verify
+      - name: Run real Temporal Session integration
+        run: just integration
+      - name: Run durable AgentWorkflow E2E
+        run: just e2e
+      - name: Emit image matrix
+        id: matrix
+        run: |
+          echo "value=$(jq -c '{include: [.images[]]}' release/images.json)" >> "$GITHUB_OUTPUT"
+
+  images:
+    needs: gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gate.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push ${{ matrix.name }}
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/0x63616c/software-factory-${{ matrix.name }}:${{ github.ref_name }}
+            ghcr.io/0x63616c/software-factory-${{ matrix.name }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/0x63616c/software-factory
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=release-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.name }}
+      - name: Record immutable digest
+        env:
+          IMAGE_NAME: ${{ matrix.name }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          jq -n \
+            --arg name "$IMAGE_NAME" \
+            --arg image "ghcr.io/0x63616c/software-factory-${IMAGE_NAME}" \
+            --arg digest "$IMAGE_DIGEST" \
+            '{name:$name,image:$image,digest:$digest}' > "image-${IMAGE_NAME}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-image-${{ matrix.name }}
+          path: image-${{ matrix.name }}.json
+          if-no-files-found: error
+
+  publish:
+    needs: images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-image-*
+          path: image-digests
+          merge-multiple: true
+      - name: Build release manifest and checksums
+        run: |
+          jq -s \
+            --arg version "$GITHUB_REF_NAME" \
+            --arg commit "$GITHUB_SHA" \
+            '{version:$version,commit:$commit,platform:"linux/amd64",images:(sort_by(.name))}' \
+            image-digests/*.json > "software-factory-images-${GITHUB_REF_NAME}.json"
+          sha256sum "software-factory-images-${GITHUB_REF_NAME}.json" > SHA256SUMS
+      - name: Publish non-draft GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "software-factory-images-${GITHUB_REF_NAME}.json" SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --generate-notes \
+            --title "Software Factory ${GITHUB_REF_NAME}"
