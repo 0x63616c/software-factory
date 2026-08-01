@@ -1,19 +1,13 @@
 # Software Factory
 
-<<<<<<< Updated upstream
 Software Factory turns dependency-ready Tickets into reviewed, tested, exact-head
 squash merges. Its durable Temporal workflows own planning, implementation,
 independent review, bounded revision, and lifecycle recovery. Model calls use the
 Responses interface directly; the retired Codex CLI prototype is not part of the
 active runtime.
-=======
+
 [![CI](https://github.com/0x63616c/software-factory/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/0x63616c/software-factory/actions/workflows/ci.yml)
 [![Last commit](https://img.shields.io/github/last-commit/0x63616c/software-factory?style=flat-square&label=Last%20Commit&labelColor=1f2937&color=0ea5e9&logo=github&logoColor=white)](https://github.com/0x63616c/software-factory/commits/main)
-
-A **software factory**: a TUI that takes in tickets and produces code merged to
-production. It is built to operate on *any* codebase — Go, Python, TypeScript,
-whatever — and one of those codebases is **itself**.
->>>>>>> Stashed changes
 
 The previously tracked standalone prototype is preserved byte-for-byte under
 [`_archived/`](./_archived/) for later review. It is intentionally excluded from
