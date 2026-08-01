@@ -259,7 +259,7 @@ func (c *Client) defaultBranch(ctx context.Context) (string, error) {
 // exists yet — so this never re-queries what its caller already knows.
 //
 // PR ownership moved here from the model (#435): `propose` used to run
-// `gh pr create` itself, from inside the sandbox, once, at the end of a fixed
+// `gh pr create` itself, from inside the execution container, once, at the end of a fixed
 // pipeline. Under the implement/review loop this opens the pull request after
 // the FIRST successful push and is never held back waiting for CI or review,
 // so a human watching the ticket sees a diff the moment there is one.

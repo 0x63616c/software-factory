@@ -11,9 +11,9 @@ import (
 	"go.temporal.io/sdk/converter"
 )
 
-// WorkspaceRoot is where a stage's working files live inside the sandbox.
+// WorkspaceRoot is where a stage's working files live inside the Run Worker.
 //
-// It is part of the contract with the sandbox image rather than a private
+// It is part of the contract with the Run Worker image rather than a private
 // detail of whatever runs the stage: the image's entrypoint creates it, and the
 // worker writes into it. Changing it means changing both.
 const WorkspaceRoot = "/work"
@@ -68,11 +68,11 @@ func isPathElement(value string) bool {
 		!strings.Contains(value, "/") && !strings.Contains(value, "\\")
 }
 
-// RepoDir is where the ticket's repository is checked out inside the sandbox,
+// RepoDir is where the ticket's repository is checked out inside the Run Worker,
 // and the working directory repository tools are confined to.
 //
 // It is a subdirectory of WorkspaceRoot rather than WorkspaceRoot itself, because
-// the sandbox root also holds this run's scaffolding — .exec/ and the per-stage
+// the Run Worker root also holds this run's scaffolding — .exec/ and the per-stage
 // prompt, schema and result files. Checking the repository out over the top of
 // those would put them inside the git working tree, where `implement` is one
 // `git add -A` away from committing a prompt into the branch it pushes.
@@ -80,20 +80,20 @@ func isPathElement(value string) bool {
 // **Nothing creates this directory ahead of the clone, deliberately.** The
 // image cannot: /work is an emptyDir, which masks anything baked under it. The
 // container runtime must not: a WORKDIR it has to create inside that emptyDir
-// is created as root with mode 0755, and the sandbox uid then cannot write its
+// is created as root with mode 0755, and the Run Worker uid then cannot write its
 // own checkout — a permission error that reads as a broken tool. A directory
 // the cloning process creates is owned by that process, so the clone creates
 // it, and the image's WORKDIR stays at the group-writable WorkspaceRoot.
 const RepoDir = WorkspaceRoot + "/repo"
 
-// GhConfigDir is the gh CLI's config directory inside the sandbox, and
+// GhConfigDir is the gh CLI's config directory inside the Run Worker, and
 // GhHostsFile the credential file it reads out of it.
 //
-// gh was put in the sandbox because the old `propose` stage opened the pull
+// gh was put in the execution image because the old `propose` stage opened the pull
 // request with it (#414). The pipeline rewrite (#435) moves PR create/edit to
-// workflow code against go-github, so whether the sandbox still needs gh (and
+// workflow code against go-github, so whether the Run Worker still needs gh (and
 // this credential file) at all is worth re-examining — not resolved here,
-// since nothing else about the sandbox's gh usage changed as part of that
+// since nothing else about the Run Worker's gh usage changed as part of that
 // rewrite. It needs its own credential file because it has no code path that
 // reads git's: git resolves a token through credential.helper and a
 // git-credential-store file, and gh looks only at GH_TOKEN in the environment
@@ -110,7 +110,7 @@ const (
 	GhConfigDir = WorkspaceRoot + "/.gh"
 
 	// GhConfigDirEnv is the environment variable pointing gh at GhConfigDir. Set
-	// on every sandbox's template by the composition root.
+	// on every Run Worker template by the composition root.
 	GhConfigDirEnv = "GH_CONFIG_DIR"
 
 	// GhHostsFile is the file gh reads a host's token from. The name is gh's,

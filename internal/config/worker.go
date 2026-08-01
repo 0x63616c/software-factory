@@ -89,7 +89,7 @@ type Worker struct {
 	// request and a limit.
 	//
 	// Optional, like LogLevel: nothing deploys them today (#340 landed the
-	// worker's own composition ahead of a resourced deploy for the sandbox
+	// worker's own composition ahead of a resourced deploy for the Run Worker
 	// pods it creates), and a default that lets a first deploy create a
 	// working pod is worth more here than a crashloop over a number nobody
 	// has decided is wrong yet. Once infra sets these explicitly the default
@@ -103,7 +103,7 @@ type Worker struct {
 // doc comment on Worker for why they default rather than fail.
 //
 // defaultRunWorkerMemoryLimit is set from a measurement, not a guess: #493
-// measured `bun run typecheck` peaking at 6.92Gi inside the sandbox image,
+// measured `bun run typecheck` peaking at 6.92Gi inside the Run Worker image,
 // against the previous 4Gi limit — which is why #479's runs died mid-implement.
 // 8Gi is 1.16x that peak, a deliberate near-term unblock rather than a
 // comfortable margin; #492 (bounding tsc's fan-out) is the real fix for the

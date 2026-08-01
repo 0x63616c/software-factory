@@ -347,7 +347,7 @@ func (c Credential) MarshalJSON() ([]byte, error) {
 	return nil, fmt.Errorf("refusing to serialise a Credential: fetch it inside the activity that uses it")
 }
 
-// CredentialFile is a complete credential document destined for a sandbox's
+// CredentialFile is a complete credential document destined for a Run Worker's
 // filesystem — the whole of a codex auth.json, not one field of it.
 //
 // Like Credential it is deliberately not a []byte: the type is what stops the

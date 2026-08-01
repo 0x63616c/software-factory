@@ -94,7 +94,7 @@ and is never traded.
 
 ## The floor
 
-No unit test touches the real world. Every external edge - codex, the k8s API, GitHub, the
+No unit test touches the real world. Every external edge - Responses, the k8s API, GitHub, the
 clock, the filesystem - sits behind a narrow injectable interface so a test hands it a
 fake. Temporal's `testsuite` covers workflow replay without a real server.
 

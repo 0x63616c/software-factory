@@ -447,7 +447,7 @@ func TestConfigUpdateMarshalsToTheKeysAnOperatorTypes(t *testing.T) {
 }
 
 // TestAnAbsurdMaxInFlightIsRefused covers the typo, which is the only way this
-// value gets large. Every ticket in flight runs codex against one
+// value gets large. Every ticket in flight calls Responses against one
 // subscription, so 20-for-2 validates, deploys and empties the rate-limit
 // window before anyone reads a dashboard.
 //

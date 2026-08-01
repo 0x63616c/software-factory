@@ -55,7 +55,7 @@ const (
 	// RunPolicy.RunBudget()'s worst case (MaxStageInvocations stage
 	// invocations at MaxStageDuration each — 19 hours today), with room for
 	// the cheap activities between them — labels, status comments, the
-	// sandbox's own lifecycle.
+	// Run Worker's own lifecycle.
 	//
 	// This grew from 6 hours under the five-stages-once pipeline to 24 under
 	// the pipeline rewrite's implement/review loop: MaxStageInvocations is 19

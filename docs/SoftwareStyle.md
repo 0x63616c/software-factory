@@ -62,7 +62,7 @@ for a redundant pass that buys nothing.
 
 Never traded. Untestable code is a blind agent guessing.
 
-**The rule:** *no unit test touches the real world.* Every external edge — codex, the
+**The rule:** *no unit test touches the real world.* Every external edge — Responses, the
 Kubernetes API, GitHub, the clock, the filesystem — sits behind a narrow injectable
 interface, so a test hands it a fake. Deterministic: injected clock, no real time,
 randomness, network or model.
@@ -191,14 +191,16 @@ Go style guide written without Temporal in mind will mislead you.
 - **No grab-bag packages.** `util`, `common`, `helpers`, `misc`, `shared` — banned. A thing
   belongs to the domain it serves.
 
-## Shelling out
+## External process execution
 
-Every `codex` invocation goes through one narrow client. The rules are non-negotiable
-because Ticket titles and bodies are **attacker-controllable text**:
+The active runtime calls the Responses interface directly and never invokes the
+retired Codex CLI. Every repository-tool process goes through a fixed-operation
+Run Worker boundary. The rules are non-negotiable because Ticket titles and
+bodies are **attacker-controllable text**:
 
 - **Argv-only.** Arguments are an explicit `[]string`. Never interpolated into
   `sh -c "<string>"`. No shell, no injection surface, no quoting bugs.
-- **End-to-end.** The guarantee only holds if the sandbox's own entrypoint doesn't
+- **End-to-end.** The guarantee only holds if the Run Worker's own entrypoint doesn't
   reintroduce a shell. Audit it.
 - **Context-aware**, so an activity timeout actually kills the exec stream rather than
   orphaning it.

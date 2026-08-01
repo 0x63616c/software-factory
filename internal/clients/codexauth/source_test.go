@@ -1262,14 +1262,15 @@ func TestSourceBoundsTheWritesThatFollowAPresentation(t *testing.T) {
 
 func TestNewRefusesARefreshMarginAStageCanOutlive(t *testing.T) {
 	t.Parallel()
-	// A sandbox cannot refresh itself, so a token that reaches the CLI's own
+	// A Run Worker cannot refresh the projected credential itself, so a token
+	// that reaches the provider client's own
 	// 5-minute window mid-stage fails the stage AND hammers the provider's
 	// auth endpoint — verified live: exit 1 after 104 requests in 35s.
 	_, err := New(newFakeStore(t), &fakeRefresher{}, clocktest.NewFake(testNow),
 		slog.New(slog.NewJSONHandler(&strings.Builder{}, nil)), testHolder, time.Hour,
 		WithRefreshMargin(30*time.Minute))
 	if err == nil {
-		t.Fatal("New accepted a refresh margin shorter than a stage; a sandbox's token would die mid-stage")
+		t.Fatal("New accepted a refresh margin shorter than a stage; a Run Worker's token would die mid-stage")
 	}
 	if _, err := New(newFakeStore(t), &fakeRefresher{}, clocktest.NewFake(testNow),
 		slog.New(slog.NewJSONHandler(&strings.Builder{}, nil)), testHolder, time.Hour,

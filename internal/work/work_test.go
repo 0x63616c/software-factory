@@ -14,7 +14,7 @@ import (
 
 // The literal strings below are asserted rather than derived. These paths and
 // this ID are a wire format: the workflow ID is the claim on a Ticket, and the
-// sandbox paths are the contract with the sandbox image. Recomputing them the
+// Run Worker paths are the contract with the Run Worker image. Recomputing them the
 // way the code does would assert nothing, so a change that alters them has to
 // change this test too, deliberately.
 

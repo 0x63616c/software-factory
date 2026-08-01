@@ -418,8 +418,8 @@ func TestCredentialFileRejectsAFileItCannotUse(t *testing.T) {
 		"a file with no access token":    []byte(`{"tokens":{"refresh_token":"r"}}`),
 		"a file with an empty access":    []byte(`{"tokens":{"access_token":"","refresh_token":"r"}}`),
 		"a tokens object that is a list": []byte(`{"tokens":[]}`),
-		// A blanked refresh token is the shape handed to a sandbox. If the
-		// worker ever reads one it has been given a sandbox's copy, and
+		// A blanked refresh token is the shape handed to a Run Worker. If the
+		// main worker ever reads one it has been given a Run Worker's copy, and
 		// refreshing from it would present an empty string to the provider.
 		"a file with a blanked refresh": []byte(`{"tokens":{"access_token":"a","refresh_token":""}}`),
 	}

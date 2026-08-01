@@ -201,7 +201,7 @@ func (t DispatcherTuning) Validate() error {
 // BranchName is the branch one run pushes its work to, and the branch its pull
 // request is later found by.
 //
-// It has one home for the same reason WorkflowID does: the sandbox creates it,
+// It has one home for the same reason WorkflowID does: the Run Worker creates it,
 // the implement stage pushes it, and the worker asks GitHub what pull request
 // is open on it. Three readers of one fact, so a second spelling is a run whose
 // pull request can never be found.
@@ -213,8 +213,8 @@ func BranchName(ticketNumber int, runID string) string {
 	return fmt.Sprintf("software-factory/ticket-%d/%s", ticketNumber, runID)
 }
 
-// RunWorkerBranchEnv is the environment variable the sandbox reads its branch
-// from. It is part of the contract with the sandbox image, like WorkspaceRoot.
+// RunWorkerBranchEnv is the environment variable the Run Worker reads its
+// branch from. It is part of the Run Worker image contract, like WorkspaceRoot.
 const RunWorkerBranchEnv = "SF_BRANCH"
 
 // PullRequest is a pull request GitHub reported, as GitHub reported it.

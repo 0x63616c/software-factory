@@ -10,12 +10,13 @@ The previously tracked standalone prototype is preserved byte-for-byte under
 [`_archived/`](./_archived/) for later review. It is intentionally excluded from
 active build, lint, generation, test, image, and CI surfaces.
 
-## Current migration state
+## Extraction state
 
 The activated production implementation was imported from
 `world-wide-webb/apps/software-factory`. Standalone contributor, integration,
-end-to-end, and release contracts are being established before the production
-consumer is cut over.
+end-to-end, image, and release contracts are active. The production consumer
+remains on the embedded build until the first immutable release is published
+and its exact digests pass the production cutover gate.
 
 ## Architecture
 

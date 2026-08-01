@@ -56,6 +56,9 @@ func TestTurnEncodesAFunctionOutputContinuation(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("originator") != "software-factory" {
+			t.Errorf("originator = %q, want standalone software-factory identity", r.Header.Get("originator"))
+		}
 		if r.Header.Get("session-id") != "workflow-123" ||
 			r.Header.Get("x-client-request-id") != "agent/run-7/plan/model/1" ||
 			r.Header.Get("Idempotency-Key") != "agent/run-7/plan/model/1" {

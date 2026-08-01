@@ -80,7 +80,7 @@ func (c *Client) Turn(ctx context.Context, request TurnRequest, emit EmitFunc) (
 	}
 	req.Header.Set("Authorization", "Bearer "+credential.AccessToken.Reveal())
 	req.Header.Set("chatgpt-account-id", credential.AccountID)
-	req.Header.Set("originator", "world-wide-webb-poc")
+	req.Header.Set("originator", "software-factory")
 	req.Header.Set("OpenAI-Beta", "responses=experimental")
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Content-Type", "application/json")
