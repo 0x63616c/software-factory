@@ -51,3 +51,20 @@ docker buildx imagetools inspect ghcr.io/0x63616c/software-factory-worker:v0.1.0
 
 The release tag is convenient discovery metadata. Production configuration must
 use the corresponding `sha256:` digest, not the tag.
+
+## External canaries
+
+The `External canary` workflow is manual, non-default, and targets the protected
+`canary` GitHub Environment. It has two independent targets:
+
+- `responses` makes one bounded request through the production direct Responses
+  client and requires the exact expected answer.
+- `github-exact-head-merge` creates a pull request in a disposable repository,
+  squash-merges its exact observed head SHA, verifies the merge response, and
+  deletes the temporary branch.
+
+Configure Responses credentials as environment secrets and its model as
+`CODEX_RESPONSES_MODEL`. Configure the GitHub target as
+`CANARY_GITHUB_REPOSITORY` and use a `CANARY_GITHUB_TOKEN` secret scoped only to
+that disposable repository. These canaries are deliberately excluded from pull
+request CI, the release gate, and the deterministic E2E suite.

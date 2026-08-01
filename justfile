@@ -6,6 +6,10 @@ default:
 bootstrap:
     ./scripts/bootstrap.sh
 
+# Manually exercise the real Responses boundary. Requires the protected canary env.
+canary-responses:
+    go run ./cmd/canary-responses
+
 archive-check:
     ./scripts/archive-check.sh
 
