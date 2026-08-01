@@ -1,0 +1,48 @@
+name: External canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: External boundary to exercise
+        required: true
+        type: choice
+        options:
+          - responses
+          - github-exact-head-merge
+
+permissions:
+  contents: read
+
+jobs:
+  responses:
+    if: inputs.target == 'responses'
+    runs-on: ubuntu-latest
+    environment: canary
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Call the real Responses client
+        env:
+          CODEX_RESPONSES_ENDPOINT: ${{ secrets.CODEX_RESPONSES_ENDPOINT }}
+          CODEX_RESPONSES_ACCESS_TOKEN: ${{ secrets.CODEX_RESPONSES_ACCESS_TOKEN }}
+          CODEX_RESPONSES_ACCOUNT_ID: ${{ secrets.CODEX_RESPONSES_ACCOUNT_ID }}
+          CODEX_RESPONSES_MODEL: ${{ vars.CODEX_RESPONSES_MODEL }}
+        run: go run ./cmd/canary-responses
+
+  github-exact-head-merge:
+    if: inputs.target == 'github-exact-head-merge'
+    runs-on: ubuntu-latest
+    environment: canary
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create and exact-head squash-merge a disposable pull request
+        env:
+          GH_TOKEN: ${{ secrets.CANARY_GITHUB_TOKEN }}
+          SOFTWARE_FACTORY_CANARY_REPOSITORY: ${{ vars.CANARY_GITHUB_REPOSITORY }}
+        run: ./scripts/canary-github.sh

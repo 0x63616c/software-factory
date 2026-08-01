@@ -1,32 +1,35 @@
-# Developer command runner. Thin recipes ONLY — the check list itself lives in
-# lefthook.yml (single source, tenet #12). Recipes here delegate; they never re-list
-# checks, so they can't drift from the hooks or CI. `just` is not required to build or
-# contribute — scripts/setup.sh and `go tool ...` work without it.
+set shell := ["bash", "-euo", "pipefail", "-c"]
 
-# List recipes.
 default:
     @just --list
 
-# Fresh-clone bootstrap: install the git-hook wall. Run this first.
-setup:
-    ./scripts/setup.sh
+bootstrap:
+    ./scripts/bootstrap.sh
 
-# Run the full pre-commit wall over the whole tree (build + lint + nolint-ban + test).
-check:
-    go tool lefthook run pre-commit --all-files
+# Manually exercise the real Responses boundary. Requires the protected canary env.
+canary-responses:
+    go run ./cmd/canary-responses
 
-# Run the heavier pre-push wall (race tests + govulncheck).
-check-push:
-    go tool lefthook run pre-push --all-files
+archive-check:
+    ./scripts/archive-check.sh
 
-# Unit tests with the race detector.
-test:
+verify: archive-check
+    go build ./cmd/...
+    go vet ./...
+    ./scripts/regenerate.sh
+    git diff --exit-code -- internal/api/openapi.yaml internal/store/storedb web/src/api/generated.ts
     go test -race ./...
+    golangci-lint run
+    golangci-lint run --build-tags=e2e ./internal/e2e/...
+    bun run --cwd web typecheck
+    bun run --cwd web test
+    bun run --cwd web build
 
-# Lint via the pinned golangci-lint.
-lint:
-    go tool golangci-lint run ./...
+integration:
+    go test -race -count=1 -tags=integration ./internal/runworkercapability
 
-# Regenerate .claude/skills symlinks after adding/removing a skill (ADR-0026).
-link-skills:
-    ./scripts/link-skills.sh
+e2e:
+    ./scripts/e2e.sh
+
+release-check VERSION:
+    ./scripts/release-check.sh "{{VERSION}}"

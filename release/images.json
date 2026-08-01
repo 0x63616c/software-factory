@@ -1,0 +1,12 @@
+{
+  "platform": "linux/amd64",
+  "images": [
+    {"name": "worker", "dockerfile": "images/worker/Dockerfile"},
+    {"name": "run-worker", "dockerfile": "images/run-worker/Dockerfile"},
+    {"name": "relay", "dockerfile": "images/relay/Dockerfile"},
+    {"name": "api", "dockerfile": "images/api/Dockerfile"},
+    {"name": "blobs", "dockerfile": "images/blobs/Dockerfile"},
+    {"name": "codec", "dockerfile": "images/codec/Dockerfile"},
+    {"name": "console", "dockerfile": "web/Dockerfile"}
+  ]
+}

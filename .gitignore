@@ -1,19 +1,12 @@
-# Build output
-/factory
-/dist/
-
-# Runtime state (the factory's own sqlite db + logs)
-*.db
-*.db-shm
-*.db-wal
-factory.log
-*.log
-
-# Go
-/vendor/
-
-# Editor / OS
 .DS_Store
-
-# Harness runtime
-.claude/*.lock
+.env
+.env.*
+!.env.example
+/bin/
+/coverage.out
+*.test
+/web/node_modules/
+/web/dist/
+/web/storybook-static/
+*.tsbuildinfo
+/.artifacts/

@@ -1,0 +1,7 @@
+.git
+.github
+_archived
+.artifacts
+web/node_modules
+web/dist
+web/storybook-static

@@ -1,0 +1,14 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: internal/database/migrations
+    queries: internal/store/queries
+    gen:
+      go:
+        # storedb holds only what sqlc generates: pgx and its own row types.
+        # internal/store wraps it and is the only package that may import it —
+        # see clients-seal-their-sdks in .golangci.yml — so the rest of the
+        # tree never sees a pgx or sqlc type, only store's domain vocabulary.
+        package: storedb
+        out: internal/store/storedb
+        sql_package: pgx/v5

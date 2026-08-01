@@ -1,72 +1,63 @@
-# software-factory
+# Software Factory
 
-A **software factory**: a TUI that takes in tickets and produces code merged to
-production. It is built to operate on *any* codebase — Go, Python, TypeScript,
-whatever — and one of those codebases is **itself**.
+Software Factory turns dependency-ready Tickets into reviewed, tested, exact-head
+squash merges. Its durable Temporal workflows own planning, implementation,
+independent review, bounded revision, and lifecycle recovery. Model calls use the
+Responses interface directly; the retired Codex CLI prototype is not part of the
+active runtime.
 
-This repository is currently in its **foundation** phase: before building the factory,
-we pinned down *how we build it* — a style guide in the spirit of TigerBeetle's
-TigerStyle, tuned for a codebase written and maintained by agents, for agents.
+The previously tracked standalone prototype is preserved byte-for-byte under
+[`_archived/`](./_archived/) for later review. It is intentionally excluded from
+active build, lint, generation, test, image, and CI surfaces.
 
-## Start here
+## Extraction state
 
-| If you want… | Read |
-|---|---|
-| The values & tenets (the north star) | [`docs/SoftwareStyle.md`](./docs/SoftwareStyle.md) |
-| Always-loaded agent context & operating protocol | [`AGENTS.md`](./AGENTS.md) |
-| *Why* a specific structural choice was made | [`docs/adr/`](./docs/adr/) |
-| How to do a recurring task (add a domain package, a migration, a worker) | [`skills/`](./skills/) |
-| The mechanical enforcement (the wall) | [`.golangci.yml`](./.golangci.yml) |
+The activated production implementation was imported from
+`world-wide-webb/apps/software-factory`. Standalone contributor, integration,
+end-to-end, image, and release contracts are active. The production consumer
+remains on the embedded build until the first immutable release is published
+and its exact digests pass the production cutover gate.
 
-## The one idea
+## Architecture
 
-There are two layers of standards, and they are **the same mechanism, different
-content**:
-
-- **Layer A** — the factory's own code (this repo's Go). Governed by `SoftwareStyle.md`.
-- **Layer B** — the standards the factory applies to whatever it's *building*. Owned by
-  each target project, consumed by the factory as data.
-
-The factory engine is **language-agnostic**; all standards are data it reads from a
-repo's conventional files (`AGENTS.md`, `skills/`, lint config). Our own standards live
-in exactly those files — so **this repo is the factory's first target project**, and we
-dogfood the format from day one.
-
-## Priority ordering
-
-> **Legibility > Correctness > Operability > Economy**
-
-Machine performance is not on the list (this is a human-scale, LLM-latency-bound
-system). Testability is a floor beneath all of it, never traded. See
-[`docs/SoftwareStyle.md`](./docs/SoftwareStyle.md) for what each term means and how the
-trades resolve.
-
-## Layout
-
-```
-cmd/factory/      the binary + composition root (manual DI wired here)
-internal/         domain packages (deep modules, by domain — names TBD)
-docs/             SoftwareStyle.md + adr/
-skills/           procedures for recurring tasks (canonical home; ADR-0026)
-.claude/skills/   generated symlinks so Claude Code can invoke skills/ (ADR-0026)
-scripts/          setup.sh — fresh-clone bootstrap; link-skills.sh
-justfile          developer command runner (thin wrappers; `just --list`)
-.golangci.yml     the mechanical enforcement layer
-.github/          CI — the unbypassable wall (ADR-0025)
+```text
+dependency-ready Ticket
+  -> Dispatcher
+  -> WorkOnTicket
+  -> AgentWorkflow(plan)
+  -> AgentWorkflow(implement)
+  -> draft PR + required CI
+  -> AgentWorkflow(review)
+  -> bounded revision when needed
+  -> exact-reviewed-head squash merge
+  -> Run succeeded + Ticket done
 ```
 
-## Setup
+See [`docs/system-map.md`](./docs/system-map.md) for the detailed trust and
+execution map and [`docs/configuration.md`](./docs/configuration.md) for the
+operator-owned dependencies, environment contract, and secret boundaries.
 
-Everything is pinned in `go.mod`'s `tool` block, so all you need is the Go toolchain.
-After cloning, run the bootstrap **first** — it installs the git-hook wall
-([ADR-0013](./docs/adr/0013-enforcement-pyramid.md)), which is otherwise off on a fresh
-clone:
+## Contributor commands
 
+```bash
+just bootstrap
+just archive-check
+just verify
+just integration
+just e2e
 ```
-./scripts/setup.sh      # or: just setup
-```
 
-Then `just --list` shows the dev recipes (`just check` runs the same wall the hooks and
-CI run). CI ([ADR-0025](./docs/adr/0025-ci-backstop.md)) re-runs that wall on every push
-and PR by delegating to the same `lefthook.yml` — so it can't be bypassed and can't
-drift from local.
+`just e2e` starts disposable PostgreSQL and Temporal services, drives a Ticket
+through the real durable `Dispatcher -> WorkOnTicket -> AgentWorkflow` path,
+and writes its machine-checkable result to `.artifacts/e2e/result.json`. It
+requires Docker and `jq`; only the model and GitHub boundaries are faked.
+
+## Releases
+
+Stable SemVer tags publish seven immutable `linux/amd64` images plus a digest
+manifest and checksums. Consumers pin digests; the project does not publish
+moving `latest`, major, or minor aliases. See [releasing](./docs/releasing.md)
+and the [compatibility policy](./docs/compatibility.md).
+
+Contributions follow [`CONTRIBUTING.md`](./CONTRIBUTING.md). Report security
+issues privately as described in [`SECURITY.md`](./SECURITY.md).

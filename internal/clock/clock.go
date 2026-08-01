@@ -1,26 +1,26 @@
-// Package clock provides an injectable time source. Reading the current time is an
-// external edge, and SoftwareStyle makes testability a floor: no unit test may touch
-// the real clock. So time-dependent code depends on Clock (a narrow seam) and is
-// handed System in production and Fake in tests.
+// Package clock is the only place in this service that reads wall-clock time.
+// Polling, circuit-breaker cooldown and access-token expiry are all
+// time-driven and all must be testable, so everything that needs the time
+// takes a Clock and a test hands it a fake one.
 //
-// To keep this honest, `time.Now` is banned outside this package by golangci-lint
-// (see .golangci.yml) — the same "one door" pattern as os.Getenv in internal/config.
+// Workflow code is the exception, and does not use this package: inside
+// internal/workflows the answer is workflow.Now and workflow.Sleep, because
+// only Temporal's clock survives replay.
 package clock
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
-// Clock is the narrow seam every time-dependent component depends on.
+// Clock reads the current time and waits. Two methods, because those are the
+// only two things this service does with time.
 type Clock interface {
-	// Now returns the current instant, ALWAYS in UTC. The engine is UTC-only
-	// (SoftwareStyle time standard); localization happens solely in the TUI.
+	// Now returns the current time in UTC.
 	Now() time.Time
+
+	// Sleep waits for d, or returns ctx.Err() if the context is cancelled
+	// first. It never blocks past cancellation, which is what makes a
+	// long-running poll or cooldown promptly stoppable.
+	Sleep(ctx context.Context, d time.Duration) error
 }
-
-// System is the real clock, backed by the operating system. Wire it at the
-// composition root; never reach for time.Now directly.
-type System struct{}
-
-// Now returns the current wall-clock time in UTC. Because this is the only door to
-// the real clock (time.Now is linter-banned elsewhere), the whole engine is
-// guaranteed UTC — you cannot accidentally introduce a local-zone timestamp.
-func (System) Now() time.Time { return time.Now().UTC() }

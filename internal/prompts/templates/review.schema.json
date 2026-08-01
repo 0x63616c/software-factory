@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "software-factory review output",
+  "description": "What the review stage returns: its document, plus every finding it raised.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["document", "findings", "verified"],
+  "properties": {
+    "document": {
+      "type": "string",
+      "description": "The stage's whole output, as markdown. Its first line is one sentence summarising the outcome."
+    },
+    "verified": {
+      "type": "array",
+      "description": "The parts you checked and would keep, one short phrase each naming the file, symbol or behaviour, e.g. \"packages/platform/src/index.ts: hooks host comment is accurate\". A later review turn is shown this list, so anything named here should not be raised as a finding by a later turn without a stated reason for the change of verdict.",
+      "items": { "type": "string" }
+    },
+    "findings": {
+      "type": "array",
+      "description": "Every finding this turn raised. Empty when the turn found nothing to raise.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "blocking", "summary"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "A short, stable slug for this exact defect, e.g. \"work/control.go-missing-nil-check\". Reuse the identical string across turns for the same underlying issue; a new issue gets a new id."
+          },
+          "blocking": {
+            "type": "boolean",
+            "description": "True if this finding must be addressed before the work is acceptable."
+          },
+          "summary": {
+            "type": "string",
+            "description": "What the finding is, concretely: the evidence checked and the concrete failure it would cause."
+          }
+        }
+      }
+    }
+  }
+}

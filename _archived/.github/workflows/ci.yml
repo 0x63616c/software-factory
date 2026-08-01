@@ -1,0 +1,38 @@
+# CI — the unbypassable backstop (ADR-0013, ADR-0025). Git hooks live per-clone and are
+# `--no-verify`-skippable, so the wall is re-run here on every push and PR where nobody
+# can turn it off.
+#
+# It runs the SAME commands as the local hooks by invoking `lefthook run` against
+# lefthook.yml — the single source of truth for the check list (tenet #12). Add a check
+# to lefthook.yml and it runs here for free; the two cannot drift. Tool versions can't
+# drift either: everything is `go tool <name>`, pinned in go.mod.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Newer pushes to the same ref cancel superseded runs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  wall:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      # `lefthook run <hook>` executes the hook's commands straight from lefthook.yml —
+      # no `lefthook install` needed (that only wires local .git/hooks).
+      - name: pre-commit wall (build, lint, nolint-ban, test)
+        run: go tool lefthook run pre-commit --all-files
+      - name: pre-push wall (race tests, govulncheck)
+        run: go tool lefthook run pre-push --all-files

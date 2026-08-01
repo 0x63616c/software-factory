@@ -1,0 +1,19 @@
+# Build output
+/factory
+/dist/
+
+# Runtime state (the factory's own sqlite db + logs)
+*.db
+*.db-shm
+*.db-wal
+factory.log
+*.log
+
+# Go
+/vendor/
+
+# Editor / OS
+.DS_Store
+
+# Harness runtime
+.claude/*.lock
