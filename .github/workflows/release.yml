@@ -167,6 +167,10 @@ jobs:
               actual="$(docker buildx imagetools inspect "${image}:${GITHUB_REF_NAME}" | awk '/^Digest:/ {print $2; exit}')"
               test "$actual" = "$expected"
             done
+      - name: Generate release notes
+        run: |
+          ./scripts/release-version.sh "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/software-factory-release-notes-${GITHUB_REF_NAME}.md"
       - name: Publish non-draft GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -175,5 +179,5 @@ jobs:
             "software-factory-images-${GITHUB_REF_NAME}.json" SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
-            --generate-notes \
-            --title "Software Factory ${GITHUB_REF_NAME}"
+            --title "Software Factory ${GITHUB_REF_NAME}" \
+            --notes-file "$RUNNER_TEMP/software-factory-release-notes-${GITHUB_REF_NAME}.md"

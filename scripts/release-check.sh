@@ -33,7 +33,7 @@ while IFS= read -r dockerfile; do
 done < <(jq -r '.images[].dockerfile' release/images.json)
 
 workflow=.github/workflows/release.yml
-for required in \
+  for required in \
   'tags:' \
   'just release-check' \
   'just verify' \
@@ -45,10 +45,11 @@ for required in \
   'org.opencontainers.image.source' \
   'sha-${{ github.sha }}' \
   'SHA256SUMS' \
-  'gh release create'; do
-  rg --fixed-strings --quiet "$required" "$workflow"
+  'gh release create' \
+  '--notes-file'; do
+  rg --fixed-strings --quiet -- "$required" "$workflow"
 done
-if rg --fixed-strings --quiet ':latest' "$workflow"; then
+if rg --fixed-strings --quiet -- ':latest' "$workflow"; then
   echo "release workflow must not publish a moving latest tag" >&2
   exit 1
 fi
@@ -59,6 +60,12 @@ done
 for link in './docs/configuration.md' './docs/releasing.md' './docs/compatibility.md' './CONTRIBUTING.md' './SECURITY.md'; do
   rg --fixed-strings --quiet "$link" README.md
 done
+
+release_notes_file="$(mktemp)"
+trap 'rm -f "$release_notes_file"' EXIT
+./scripts/release-version.sh "$version" --notes-file "$release_notes_file" --no-codex
+rg --fixed-strings --quiet '# What changed' "$release_notes_file"
+rg --fixed-strings --quiet '## Changes since ' "$release_notes_file"
 
 retired_module='github.com/0x63616c/world-wide-webb/apps/'software-factory
 if rg --glob '!_archived/**' --fixed-strings --quiet "$retired_module" .; then

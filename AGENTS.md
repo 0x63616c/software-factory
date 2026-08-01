@@ -179,3 +179,5 @@ func TestReplayDispatcherHistory(t *testing.T) {
 - Done = `golangci-lint` clean and relevant tests pass, verified by running them, not asserted.
 - Never silence a linter. Fix the code.
 - Stop and ask before anything irreversible or outward-facing.
+
+use ./scritps/relase-version.sh v0.1.4 --create-tag to release a new version

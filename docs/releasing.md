@@ -16,13 +16,13 @@ not publish a unified `sf` binary and does not create moving `latest`, `v0`, or
 
    ```bash
    just release-check VERSION=v0.1.0
+   scripts/release-version.sh v0.1.0 --create-tag
    ```
 
 3. Create and push the exact tag:
 
    ```bash
-   git tag -s v0.1.0 -m "Software Factory v0.1.0"
-   git push origin v0.1.0
+   scripts/release-version.sh v0.1.0 --push-tag
    ```
 
 The tag-triggered release workflow verifies that the commit belongs to `main`,
