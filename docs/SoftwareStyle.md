@@ -6,6 +6,9 @@
 > What was adopted, translated and dropped is recorded in
 > [`style-adoption.md`](./style-adoption.md).
 
+This file is the canonical rulebook for current work. `_archived/docs/softwarestyle.md`
+is preserved for context and migration history.
+
 The north star for Go in this directory. Rule vs this doc → this doc wins. Rule vs rule →
 the priority ordering decides. Correctness comes from *types, linters and tests*, not
 runtime assertions.
@@ -55,6 +58,30 @@ for a redundant pass that buys nothing.
   going" produces a plausible PR that wastes a review.
 - **Operability > Economy.** Decision logs, transcripts and token accounting cost
   something. Pay them — you cannot run an unattended code-shipping system you can't watch.
+
+## Combined guidance with the archived style guide
+
+This section captures useful points from `_archived/docs/softwarestyle.md` so they stay
+visible while making it explicit how they map to current policy.
+
+### Still current (already reflected below)
+
+- Priority ordering remains unchanged: `Legibility > Correctness > Operability > Economy`.
+- Mechanical enforcement is the primary guardrail: linters, types, tests, and CI hooks.
+- Parse input at boundaries, then convert to typed domain values.
+- Keep public interfaces narrow and avoid grab-bag packages.
+- No escape hatches: do not silence failures, ignored errors, or silent recover paths.
+- UTC-first, injected clock time handling, and single-source-of-truth discipline remain required.
+- Avoid relying on docs for mandatory correctness; prefer mechanical enforcement.
+
+### Historical-only (kept for archival alignment)
+
+- The archived "Layer A / Layer B" engine framing is prototype-era context and retained only
+  for reference, not as active runtime policy.
+- Legacy references to TUI-focused engine structure, `ginkgolinter`, and file-first logging are
+  historical and apply only when explicitly reintroduced.
+- Prototype-era identity guidance (e.g., `<prefix>_<ulid>`) is archival; current identity
+  policy is in the `Identity` and `Concurrency and context` sections.
 
 ---
 

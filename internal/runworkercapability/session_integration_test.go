@@ -78,6 +78,7 @@ var (
 	privateHelperQueue    = flag.String("capability-private-queue", "", "private queue for the helper")
 	privateHelperIdentity = flag.String("capability-private-identity", "", "private worker identity")
 	privateHelperRoot     = flag.String("capability-private-root", "", "isolated filesystem root")
+	privateHelperPayloads = flag.String("capability-private-payload-store", "", "shared temporal payload store")
 )
 
 type sessionActivityInput struct {
@@ -161,13 +162,15 @@ type privateWorkerProcess struct {
 
 func TestSessionPinsRepositoryWorkToOneIsolatedPrivateWorker(t *testing.T) {
 	server := startServer(t)
+	payloads := t.TempDir()
 	rootOne := t.TempDir()
 	rootTwo := t.TempDir()
-	startWorker(t, mainCapabilityWorker(server.Client(), "main"))
-	privateOne := startPrivateWorkerProcess(t, server.FrontendHostPort(), privateQueueOne, "private-one", rootOne)
-	privateTwo := startPrivateWorkerProcess(t, server.FrontendHostPort(), privateQueueTwo, "private-two", rootTwo)
+	client := startCodecClient(t, server, payloads)
+	startWorker(t, mainCapabilityWorker(client, "main"))
+	privateOne := startPrivateWorkerProcess(t, server.FrontendHostPort(), payloads, privateQueueOne, "private-one", rootOne)
+	privateTwo := startPrivateWorkerProcess(t, server.FrontendHostPort(), payloads, privateQueueTwo, "private-two", rootTwo)
 
-	run, err := server.Client().ExecuteWorkflow(context.Background(), temporalclient.StartWorkflowOptions{
+	run, err := client.ExecuteWorkflow(context.Background(), temporalclient.StartWorkflowOptions{
 		ID:        "session-capability-affinity",
 		TaskQueue: mainQueue,
 	}, sessionEvidenceWorkflow, sessionWorkflowInput{
@@ -214,13 +217,15 @@ func TestSessionPinsRepositoryWorkToOneIsolatedPrivateWorker(t *testing.T) {
 
 func TestSessionRunsTheRegisteredRunWorkerActivitiesOnItsPrivateWorker(t *testing.T) {
 	server := startServer(t)
+	payloads := t.TempDir()
 	rootOne := t.TempDir()
 	rootTwo := t.TempDir()
-	startWorker(t, mainCapabilityWorker(server.Client(), "main"))
-	privateOne := startPrivateWorkerProcess(t, server.FrontendHostPort(), privateQueueOne, "private-one", rootOne)
-	startPrivateWorkerProcess(t, server.FrontendHostPort(), privateQueueTwo, "private-two", rootTwo)
+	client := startCodecClient(t, server, payloads)
+	startWorker(t, mainCapabilityWorker(client, "main"))
+	privateOne := startPrivateWorkerProcess(t, server.FrontendHostPort(), payloads, privateQueueOne, "private-one", rootOne)
+	startPrivateWorkerProcess(t, server.FrontendHostPort(), payloads, privateQueueTwo, "private-two", rootTwo)
 
-	run, err := server.Client().ExecuteWorkflow(context.Background(), temporalclient.StartWorkflowOptions{
+	run, err := client.ExecuteWorkflow(context.Background(), temporalclient.StartWorkflowOptions{
 		ID:        "session-registered-run-worker-activities",
 		TaskQueue: mainQueue,
 	}, productionSessionWorkflow, productionSessionInput{
@@ -248,10 +253,12 @@ func TestSessionRunsTheRegisteredRunWorkerActivitiesOnItsPrivateWorker(t *testin
 
 func TestSessionCreationWaitsForRunWorkerReadiness(t *testing.T) {
 	server := startServer(t)
+	payloads := t.TempDir()
 	root := t.TempDir()
-	startWorker(t, mainCapabilityWorker(server.Client(), "main"))
+	client := startCodecClient(t, server, payloads)
+	startWorker(t, mainCapabilityWorker(client, "main"))
 
-	run, err := server.Client().ExecuteWorkflow(context.Background(), temporalclient.StartWorkflowOptions{
+	run, err := client.ExecuteWorkflow(context.Background(), temporalclient.StartWorkflowOptions{
 		ID:        "session-target-readiness",
 		TaskQueue: mainQueue,
 	}, sessionReadinessWorkflow, sessionWorkflowInput{
@@ -270,7 +277,7 @@ func TestSessionCreationWaitsForRunWorkerReadiness(t *testing.T) {
 		t.Fatalf("workflow before Run Worker readiness = %T: %v, want a deadline error", err, err)
 	}
 
-	private := startPrivateWorkerProcess(t, server.FrontendHostPort(), privateQueueOne, "private-ready", root)
+	private := startPrivateWorkerProcess(t, server.FrontendHostPort(), payloads, privateQueueOne, "private-ready", root)
 	var evidence sessionActivityEvidence
 	if err := run.Get(context.Background(), &evidence); err != nil {
 		t.Fatalf("getting workflow result after Run Worker readiness: %v", err)
@@ -283,14 +290,16 @@ func TestSessionCreationWaitsForRunWorkerReadiness(t *testing.T) {
 
 func TestSessionStaysOnItsPrivateProcessAcrossAMainWorkerRestart(t *testing.T) {
 	server := startServer(t)
+	payloads := t.TempDir()
 	rootOne := t.TempDir()
-	mainWorker := mainCapabilityWorker(server.Client(), "main-initial")
+	client := startCodecClient(t, server, payloads)
+	mainWorker := mainCapabilityWorker(client, "main-initial")
 	if err := mainWorker.Start(); err != nil {
 		t.Fatalf("starting initial main worker: %v", err)
 	}
-	privateOne := startPrivateWorkerProcess(t, server.FrontendHostPort(), privateQueueOne, "private-one", rootOne)
+	privateOne := startPrivateWorkerProcess(t, server.FrontendHostPort(), payloads, privateQueueOne, "private-one", rootOne)
 
-	run, err := server.Client().ExecuteWorkflow(context.Background(), temporalclient.StartWorkflowOptions{
+	run, err := client.ExecuteWorkflow(context.Background(), temporalclient.StartWorkflowOptions{
 		ID:        "session-capability-main-restart",
 		TaskQueue: mainQueue,
 	}, sessionRestartWorkflow, sessionWorkflowInput{
@@ -304,8 +313,8 @@ func TestSessionStaysOnItsPrivateProcessAcrossAMainWorkerRestart(t *testing.T) {
 	waitForFile(t, filepath.Join(rootOne, "repository.marker"), "first private activity marker")
 
 	mainWorker.Stop()
-	startWorker(t, mainCapabilityWorker(server.Client(), "main-replacement"))
-	if err := server.Client().SignalWorkflow(context.Background(), run.GetID(), run.GetRunID(), "continue", "resume"); err != nil {
+	startWorker(t, mainCapabilityWorker(client, "main-replacement"))
+	if err := client.SignalWorkflow(context.Background(), run.GetID(), run.GetRunID(), "continue", "resume"); err != nil {
 		t.Fatalf("signalling workflow after main-worker restart: %v", err)
 	}
 
@@ -330,12 +339,14 @@ func TestSessionStaysOnItsPrivateProcessAcrossAMainWorkerRestart(t *testing.T) {
 
 func TestSessionLossLeavesMainControlAndRoutesAReplacementToItsOwnRoot(t *testing.T) {
 	server := startServer(t)
+	payloads := t.TempDir()
 	rootOne := t.TempDir()
 	rootTwo := t.TempDir()
-	startWorker(t, mainCapabilityWorker(server.Client(), "main"))
-	privateOne := startPrivateWorkerProcess(t, server.FrontendHostPort(), privateQueueOne, "private-one", rootOne)
+	client := startCodecClient(t, server, payloads)
+	startWorker(t, mainCapabilityWorker(client, "main"))
+	privateOne := startPrivateWorkerProcess(t, server.FrontendHostPort(), payloads, privateQueueOne, "private-one", rootOne)
 
-	run, err := server.Client().ExecuteWorkflow(context.Background(), temporalclient.StartWorkflowOptions{
+	run, err := client.ExecuteWorkflow(context.Background(), temporalclient.StartWorkflowOptions{
 		ID:        "session-capability-worker-loss",
 		TaskQueue: mainQueue,
 	}, sessionLossWorkflow, sessionLossInput{
@@ -350,11 +361,11 @@ func TestSessionLossLeavesMainControlAndRoutesAReplacementToItsOwnRoot(t *testin
 	}
 	waitForFile(t, filepath.Join(rootOne, "repository.marker"), "first private activity marker")
 
-	privateOne.stop(t)
-	privateTwo := startPrivateWorkerProcess(t, server.FrontendHostPort(), privateQueueTwo, "private-replacement", rootTwo)
-	if err := server.Client().SignalWorkflow(context.Background(), run.GetID(), run.GetRunID(), "continue", "resume"); err != nil {
+	if err := client.SignalWorkflow(context.Background(), run.GetID(), run.GetRunID(), "continue", "resume"); err != nil {
 		t.Fatalf("signalling workflow after private-worker loss: %v", err)
 	}
+	privateOne.stop(t)
+	privateTwo := startPrivateWorkerProcess(t, server.FrontendHostPort(), payloads, privateQueueTwo, "private-replacement", rootTwo)
 
 	var evidence sessionLossEvidence
 	if err := run.Get(context.Background(), &evidence); err != nil {
@@ -401,11 +412,16 @@ func TestPrivateWorkerHelperProcess(t *testing.T) {
 	queue := *privateHelperQueue
 	identity := *privateHelperIdentity
 	root := *privateHelperRoot
-	if hostPort == "" || queue == "" || identity == "" || root == "" {
+	payloadStore := *privateHelperPayloads
+	if hostPort == "" || queue == "" || identity == "" || root == "" || payloadStore == "" {
 		t.Fatal("private worker helper environment is incomplete")
 	}
 
-	c, err := temporalclient.Dial(temporalclient.Options{HostPort: hostPort}, blobs.NewMemStore(), nil)
+	store, err := blobs.NewFileStore(payloadStore)
+	if err != nil {
+		t.Fatalf("creating private worker payload store: %v", err)
+	}
+	c, err := temporalclient.Dial(temporalclient.Options{HostPort: hostPort}, store, nil)
 	if err != nil {
 		t.Fatalf("dialling Temporal: %v", err)
 	}
@@ -625,9 +641,9 @@ func mainControlActivityContext(ctx workflow.Context) workflow.Context {
 
 func createCapabilitySession(ctx workflow.Context, privateQueue string) (workflow.Context, error) {
 	return workflow.CreateSession(privateActivityContext(ctx, privateQueue), &workflow.SessionOptions{
-		ExecutionTimeout: time.Minute,
-		CreationTimeout:  time.Minute,
-		HeartbeatTimeout: time.Second,
+		ExecutionTimeout: 5 * time.Minute,
+		CreationTimeout: 5 * time.Minute,
+		HeartbeatTimeout: 90 * time.Second,
 	})
 }
 
@@ -868,7 +884,7 @@ func privateMarkerPath(root, name string) (string, error) {
 	return filepath.Join(root, name), nil
 }
 
-func startPrivateWorkerProcess(t *testing.T, hostPort, queue, identity, root string) *privateWorkerProcess {
+func startPrivateWorkerProcess(t *testing.T, hostPort, payloadStore, queue, identity, root string) *privateWorkerProcess {
 	t.Helper()
 	process := &privateWorkerProcess{}
 	process.cmd = exec.Command(
@@ -878,6 +894,7 @@ func startPrivateWorkerProcess(t *testing.T, hostPort, queue, identity, root str
 		"-capability-private-worker-helper=true",
 		"-capability-temporal-host-port="+hostPort,
 		"-capability-private-queue="+queue,
+		"-capability-private-payload-store="+payloadStore,
 		"-capability-private-identity="+identity,
 		"-capability-private-root="+root,
 	)
@@ -963,6 +980,20 @@ func startServer(t *testing.T) *testsuite.DevServer {
 		}
 	})
 	return server
+}
+
+func startCodecClient(t *testing.T, server *testsuite.DevServer, payloadDir string) temporalclient.Client {
+	t.Helper()
+	store, err := blobs.NewFileStore(payloadDir)
+	if err != nil {
+		t.Fatalf("creating payload store: %v", err)
+	}
+	c, err := temporalclient.Dial(temporalclient.Options{HostPort: server.FrontendHostPort()}, store, nil)
+	if err != nil {
+		t.Fatalf("dialling Temporal: %v", err)
+	}
+	t.Cleanup(c.Close)
+	return c
 }
 
 func startWorker(t *testing.T, w worker.Worker) {

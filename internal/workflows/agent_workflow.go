@@ -58,15 +58,15 @@ type AgentWorkflowInput struct {
 
 // AgentWorkflowState is the reference-only state carried across Continue-As-New.
 type AgentWorkflowState struct {
-	ConversationRef         agent.ConversationRef
-	TranscriptRef           agent.TranscriptRef
-	ResponseFormat          agent.ResponseFormatRef
-	ToolsetFingerprint      string
-	PromptCacheKey          string
-	Usage                   work.Usage
-	UsageMeasured           bool
-	ModelTurns              int
-	ToolCalls               int
+	ConversationRef    agent.ConversationRef
+	TranscriptRef      agent.TranscriptRef
+	ResponseFormat     agent.ResponseFormatRef
+	ToolsetFingerprint string
+	PromptCacheKey     string
+	Usage              work.Usage
+	UsageMeasured      bool
+	ModelTurns         int
+	ToolCalls          int
 }
 
 // AgentWorkflowResult is the typed result returned to WorkOnTicket.

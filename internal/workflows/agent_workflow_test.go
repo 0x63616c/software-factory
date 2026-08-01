@@ -412,7 +412,6 @@ func TestAgentWorkflowContinuesAsNewWithOnlyReferences(t *testing.T) {
 
 	const conversationBody = "large-conversation-content-must-not-enter-the-continuation-payload"
 	initial := agent.ConversationRef{Key: "conversations/run-7/0", Revision: 0, Bytes: 100, Digest: "initial"}
-	continued := agent.ConversationRef{Key: "conversations/run-7/16", Revision: 16, Bytes: 300, Digest: "continued"}
 	transcript := agent.TranscriptRef{Key: "transcripts/run-7", Bytes: 80, Digest: "transcript"}
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()

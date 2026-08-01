@@ -150,32 +150,21 @@ else
   fi
 fi
 
-if (( skip_codex == 0 )) && command -v codex >/dev/null 2>&1; then
-  summary_file="$(mktemp)"
-  summary_prompt="$(printf '%s\n' "${commit_lines_for_summary[@]}")"
-  if codex exec --skip-git-repo-check --output-last-message "${summary_file}" --sandbox workspace-write <<EOF
-You are generating release notes for Software Factory.
-Write a short, practical summary for "What changed" based on this commit list.
-Keep it to at most 6 bullets and no more than 120 words.
-Do not include a heading line (no "What changed" title).
-
-${summary_prompt}
-EOF
-  then
-    summary="$(cat "${summary_file}")"
-  else
-    summary=""
-  fi
-  rm -f "${summary_file}"
-else
-  summary=""
-fi
-
-if [[ -z "${summary}" ]]; then
+if (( skip_codex == 1 )) || ! command -v sed >/dev/null 2>&1; then
   summary="Release contains ${#commits[@]} commit(s) since ${latest_tag}."
   if (( ${#commits[@]} > 0 )); then
     summary="Release includes ${#commits[@]} commit(s) since ${latest_tag}, each documented in the table below."
   fi
+else
+  if (( ${#commit_lines_for_summary[@]} == 0 )); then
+    summary="No changes found since ${latest_tag}."
+  else
+    summary="Release summary for ${#commits[@]} commit(s):"
+    summary+=" $(printf '%s; ' "${commit_lines_for_summary[@]}")"
+    summary="${summary%; }"
+  fi
+  # The previous Codex-assisted summary was replaced by a deterministic one for
+  # production environments that must remain self-contained and toolchain-stable.
 fi
 
 {
