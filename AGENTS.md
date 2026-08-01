@@ -24,9 +24,10 @@ For every task in this repository, also load both:
 - [`docs/releasing.md`](/Users/calum/code/github.com/0x63616c/software-factory/docs/releasing.md)
 
 For implementation changes in Go, also follow these current conventions:
-- Use `github.com/cockroachdb/errors` for wrapped/error-chain output.
-- Use `internal/retry` for shared retry backoff behavior instead of duplicate loops.
-- Use `github.com/onsi/ginkgo/v2` + `github.com/onsi/gomega` for workflow/activity test suites and keep `_suite_test.go` bootstrap files in place.
+- Use `github.com/cockroachdb/errors` for wrapped and classified errors. Prefer semantic error types and avoid `fmt.Errorf` without wrapping when context matters.
+- Use `internal/retry` for shared retry backoff behavior instead of duplicating ad-hoc retry loops.
+- Keep HTTP command entrypoints on `internal/httpserver` helpers (`Serve` / `ServeWithServer` / `RunWithShutdownError`) so startup and shutdown behavior is consistent.
+- Use `github.com/onsi/ginkgo/v2` + `github.com/onsi/gomega` for new test suites and keep `_suite_test.go` bootstrap files in place.
 
 ## What this is
 
