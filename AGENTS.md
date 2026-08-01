@@ -13,6 +13,8 @@
 `web/` is the console (ADR-0012): a TypeScript SPA, governed by
 `docs/writing-scalable-typescript/`, not by `SoftwareStyle.md` or `.golangci.yml` below.
 
+For every task in this repository, treat [`docs/SoftwareStyle.md`](/Users/calum/code/github.com/0x63616c/software-factory/docs/SoftwareStyle.md) as the default style guide baseline and load it before making code changes.
+
 ## What this is
 
 A Go Temporal worker that autonomously works Tickets from its own Postgres (ADR-0012).
