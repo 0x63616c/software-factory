@@ -5,7 +5,23 @@ import (
 	"testing"
 )
 
+func setCompleteAPIEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv(envAPIDatabaseURL, "postgres://example")
+	t.Setenv(envAPIListenAddr, ":8080")
+	t.Setenv(envAPIMetricsAddr, ":9090")
+	t.Setenv(envAccessTeamDomain, "test.cloudflareaccess.com")
+	t.Setenv(envAccessAudience, "test-audience")
+	t.Setenv(envAPIWorkerBearer, "test-worker-bearer")
+	t.Setenv(envAPIRunWorkerBearer, "test-run-worker-bearer")
+	t.Setenv(envAPITemporalHost, "temporal:7233")
+	t.Setenv(envAPITemporalNS, "software-factory")
+	t.Setenv(envAPIBlobsURL, "http://blobs:8080")
+	t.Setenv(envAPIWebhookSecret, "test-webhook-secret")
+}
+
 func TestLoadAPIRequiresDatabaseURL(t *testing.T) {
+	setCompleteAPIEnv(t)
 	t.Setenv(envAPIDatabaseURL, "")
 	t.Setenv(envAPIListenAddr, ":8080")
 	t.Setenv(envAPIMetricsAddr, ":9090")
@@ -22,6 +38,7 @@ func TestLoadAPIRequiresDatabaseURL(t *testing.T) {
 }
 
 func TestLoadAPIRequiresWebhookSecret(t *testing.T) {
+	setCompleteAPIEnv(t)
 	t.Setenv(envAPIDatabaseURL, "postgres://example")
 	t.Setenv(envAPIListenAddr, ":8080")
 	t.Setenv(envAPIMetricsAddr, ":9090")
@@ -38,6 +55,7 @@ func TestLoadAPIRequiresWebhookSecret(t *testing.T) {
 }
 
 func TestLoadAPIBuildsDatabaseURLFromCNPGAuthSecretValues(t *testing.T) {
+	setCompleteAPIEnv(t)
 	t.Setenv(envAPIDatabaseURL, "")
 	t.Setenv(envAPIDatabaseUser, "software_factory")
 	t.Setenv(envAPIDatabasePassword, "a password/with?characters")
@@ -63,6 +81,7 @@ func TestLoadAPIBuildsDatabaseURLFromCNPGAuthSecretValues(t *testing.T) {
 }
 
 func TestLoadAPIParsesAccessEndpoints(t *testing.T) {
+	setCompleteAPIEnv(t)
 	t.Setenv(envAPIDatabaseURL, "postgres://example")
 	t.Setenv(envAPIListenAddr, ":8080")
 	t.Setenv(envAPIMetricsAddr, ":9090")
@@ -84,6 +103,7 @@ func TestLoadAPIParsesAccessEndpoints(t *testing.T) {
 }
 
 func TestLoadAPIRejectsMalformedAccessDomain(t *testing.T) {
+	setCompleteAPIEnv(t)
 	t.Setenv(envAPIDatabaseURL, "postgres://example")
 	t.Setenv(envAPIListenAddr, ":8080")
 	t.Setenv(envAPIMetricsAddr, ":9090")
@@ -97,5 +117,13 @@ func TestLoadAPIRejectsMalformedAccessDomain(t *testing.T) {
 
 	if _, err := LoadAPI(); err == nil || !strings.Contains(err.Error(), envAccessTeamDomain) {
 		t.Fatalf("LoadAPI() error = %v, want malformed %s", err, envAccessTeamDomain)
+	}
+}
+
+func TestLoadAPIRequiresBlobsURL(t *testing.T) {
+	setCompleteAPIEnv(t)
+	t.Setenv(envAPIBlobsURL, "")
+	if _, err := LoadAPI(); err == nil || !strings.Contains(err.Error(), envAPIBlobsURL) {
+		t.Fatalf("LoadAPI() error = %v, want missing %s", err, envAPIBlobsURL)
 	}
 }

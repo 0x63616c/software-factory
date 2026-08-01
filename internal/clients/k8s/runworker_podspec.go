@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/0x63616c/software-factory/internal/config"
 	"github.com/0x63616c/software-factory/internal/work"
 )
 
@@ -83,7 +82,6 @@ func buildRunWorkerPod(spec work.RunWorkerSpec, o runWorkerOptions) (*corev1.Pod
 		return nil, fmt.Errorf("building Run Worker pod task queue: %w", err)
 	}
 	env[work.RunWorkerTaskQueueEnv] = taskQueue
-	env[config.PayloadCodecModeEnv] = "full"
 	toolTaskQueue, err := work.RunWorkerToolTaskQueue(spec.Identity)
 	if err != nil {
 		return nil, fmt.Errorf("building Run Worker tool task queue: %w", err)
@@ -93,7 +91,6 @@ func buildRunWorkerPod(spec work.RunWorkerSpec, o runWorkerOptions) (*corev1.Pod
 		work.ToolWorkerTemporalNamespaceEnv: spec.Env[work.RunWorkerTemporalNamespaceEnv],
 		work.ToolWorkerTaskQueueEnv:         toolTaskQueue,
 		work.ToolWorkerBlobsURLEnv:          spec.Env[work.RunWorkerBlobsURLEnv],
-		config.PayloadCodecModeEnv:          "full",
 	}
 
 	uid := runWorkerUID

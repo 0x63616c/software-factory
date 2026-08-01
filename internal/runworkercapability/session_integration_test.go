@@ -28,6 +28,7 @@ import (
 	"go.temporal.io/sdk/workflow"
 
 	"github.com/0x63616c/software-factory/internal/activities"
+	"github.com/0x63616c/software-factory/internal/blobs"
 	temporalclient "github.com/0x63616c/software-factory/internal/clients/temporal"
 	"github.com/0x63616c/software-factory/internal/store"
 	"github.com/0x63616c/software-factory/internal/work"
@@ -404,7 +405,7 @@ func TestPrivateWorkerHelperProcess(t *testing.T) {
 		t.Fatal("private worker helper environment is incomplete")
 	}
 
-	c, err := temporalclient.Dial(temporalclient.Options{HostPort: hostPort}, nil, nil)
+	c, err := temporalclient.Dial(temporalclient.Options{HostPort: hostPort}, blobs.NewMemStore(), nil)
 	if err != nil {
 		t.Fatalf("dialling Temporal: %v", err)
 	}

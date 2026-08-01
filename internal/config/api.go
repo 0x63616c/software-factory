@@ -22,6 +22,7 @@ const (
 	envAPIRunWorkerBearer  = "SOFTWARE_FACTORY_API__RUN_WORKER_BEARER_TOKEN"
 	envAPITemporalHost     = "TEMPORAL_HOST_PORT"
 	envAPITemporalNS       = "TEMPORAL_NAMESPACE"
+	envAPIBlobsURL         = "BLOBS_URL"
 	envAPIWebhookSecret    = "GITHUB_BOT_APP__WEBHOOK_SECRET"
 )
 
@@ -38,6 +39,7 @@ type API struct {
 	RunWorkerBearer   string
 	TemporalHostPort  string
 	TemporalNamespace string
+	BlobsURL          string
 	// WebhookSecret is the GitHub App webhook secret internal/webhook verifies
 	// deliveries against — the same secret the relay (#535) verifies with,
 	// duplicated for the reason internal/webhook's own doc comment gives.
@@ -66,6 +68,7 @@ func LoadAPI() (API, error) {
 		RunWorkerBearer:   os.Getenv(envAPIRunWorkerBearer),
 		TemporalHostPort:  os.Getenv(envAPITemporalHost),
 		TemporalNamespace: os.Getenv(envAPITemporalNS),
+		BlobsURL:          os.Getenv(envAPIBlobsURL),
 		WebhookSecret:     []byte(os.Getenv(envAPIWebhookSecret)),
 	}
 	for _, required := range []struct{ name, value string }{
@@ -78,6 +81,7 @@ func LoadAPI() (API, error) {
 		{envAPIRunWorkerBearer, cfg.RunWorkerBearer},
 		{envAPITemporalHost, cfg.TemporalHostPort},
 		{envAPITemporalNS, cfg.TemporalNamespace},
+		{envAPIBlobsURL, cfg.BlobsURL},
 		{envAPIWebhookSecret, string(cfg.WebhookSecret)},
 	} {
 		if strings.TrimSpace(required.value) == "" {

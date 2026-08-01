@@ -24,6 +24,7 @@ import (
 
 	factoryapi "github.com/0x63616c/software-factory/internal/api"
 	"github.com/0x63616c/software-factory/internal/api/auth"
+	"github.com/0x63616c/software-factory/internal/blobs"
 	"github.com/0x63616c/software-factory/internal/checkpoint"
 	temporalapi "github.com/0x63616c/software-factory/internal/clients/temporal"
 	"github.com/0x63616c/software-factory/internal/config"
@@ -107,11 +108,15 @@ func run() error {
 		return fmt.Errorf("opening PostgreSQL pool for ticket API: %w", err)
 	}
 	defer pool.Close()
+	blobStore, err := blobs.NewHTTPStore(cfg.BlobsURL, nil)
+	if err != nil {
+		return fmt.Errorf("opening HTTP blob store: %w", err)
+	}
 	temporal, err := temporalapi.Dial(temporalapi.Options{
 		HostPort:  cfg.TemporalHostPort,
 		Namespace: cfg.TemporalNamespace,
 		Logger:    tlog.NewStructuredLogger(logger),
-	}, nil, nil)
+	}, blobStore, nil)
 	if err != nil {
 		return fmt.Errorf("dialling Temporal at %s in namespace %s: %w", cfg.TemporalHostPort, cfg.TemporalNamespace, err)
 	}
