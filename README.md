@@ -42,7 +42,13 @@ just bootstrap
 just archive-check
 just verify
 just integration
+just e2e
 ```
 
-`just e2e` and `just release-check VERSION=v0.1.0` are reserved by the v1
-acceptance contract and will be enabled as their implementation slices land.
+`just e2e` starts disposable PostgreSQL and Temporal services, drives a Ticket
+through the real durable `Dispatcher -> WorkOnTicket -> AgentWorkflow` path,
+and writes its machine-checkable result to `.artifacts/e2e/result.json`. It
+requires Docker and `jq`; only the model and GitHub boundaries are faked.
+
+`just release-check VERSION=v0.1.0` remains fail-closed until the release slice
+lands.

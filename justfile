@@ -27,8 +27,7 @@ integration:
     go test -race -count=1 -tags=integration ./internal/runworkercapability
 
 e2e:
-    @echo "deterministic local AgentWorkflow E2E is not implemented yet" >&2
-    @exit 1
+    ./scripts/e2e.sh
 
 release-check VERSION:
     @echo "release-check for {{VERSION}} is not implemented yet" >&2

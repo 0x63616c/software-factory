@@ -61,8 +61,27 @@ jobs:
       - name: Run real Temporal Session integration
         run: go test -race -count=1 -tags=integration ./internal/runworkercapability
 
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: extractions/setup-just@v3
+      - name: Run durable AgentWorkflow E2E
+        run: just e2e
+      - name: Upload machine-checkable E2E result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-factory-e2e-result
+          path: .artifacts/e2e/result.json
+          if-no-files-found: error
+
   images:
-    needs: verify
+    needs: [verify, temporal-session, e2e]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
