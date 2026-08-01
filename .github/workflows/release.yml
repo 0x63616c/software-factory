@@ -169,8 +169,15 @@ jobs:
             done
       - name: Generate release notes
         run: |
-          ./scripts/release-version.sh "$GITHUB_REF_NAME" \
-            --notes-file "$RUNNER_TEMP/software-factory-release-notes-${GITHUB_REF_NAME}.md"
+          git tag -l "$GITHUB_REF_NAME" --format='%(contents)' \
+            > "$RUNNER_TEMP/software-factory-release-notes-${GITHUB_REF_NAME}.md"
+          test -s "$RUNNER_TEMP/software-factory-release-notes-${GITHUB_REF_NAME}.md"
+          rg --fixed-strings --quiet '# What changed' \
+            "$RUNNER_TEMP/software-factory-release-notes-${GITHUB_REF_NAME}.md"
+          rg --fixed-strings --quiet '## Changes since ' \
+            "$RUNNER_TEMP/software-factory-release-notes-${GITHUB_REF_NAME}.md"
+          rg --fixed-strings --quiet '| Commit | Message | Author |' \
+            "$RUNNER_TEMP/software-factory-release-notes-${GITHUB_REF_NAME}.md"
       - name: Publish non-draft GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
