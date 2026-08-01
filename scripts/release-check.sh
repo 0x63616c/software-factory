@@ -23,7 +23,6 @@ git diff --exit-code -- internal/api/openapi.yaml internal/store/storedb web/src
 
 jq --exit-status '
   .platform == "linux/amd64" and
-  [.images[].name] == ["worker","run-worker","relay","api","blobs","codec","console"] and
   (.images | length) == 7 and
   ([.images[].name] | unique | length) == 7 and
   ([.images[].dockerfile] | unique | length) == 7
@@ -67,4 +66,37 @@ if rg --glob '!_archived/**' --fixed-strings --quiet "$retired_module" .; then
   exit 1
 fi
 
-echo "release contract valid for $version: 7 immutable linux/amd64 images"
+artifact_dir=.artifacts/release
+mkdir -p "$artifact_dir"
+commit="$(git rev-parse HEAD)"
+jq \
+  --arg version "$version" \
+  --arg commit "$commit" \
+  --arg source 'https://github.com/0x63616c/software-factory' \
+  '{version:$version,commit:$commit,platform:.platform,images:[.images[] | . + {
+    repository:("ghcr.io/0x63616c/software-factory-" + .name),
+    tags:[$version,("sha-" + $commit)],
+    labels:{
+      "org.opencontainers.image.version":$version,
+      "org.opencontainers.image.revision":$commit,
+      "org.opencontainers.image.source":$source
+    }
+  }]}' release/images.json > "$artifact_dir/plan.json"
+
+if command -v sha256sum >/dev/null 2>&1; then
+  (cd "$artifact_dir" && sha256sum plan.json > SHA256SUMS && sha256sum -c SHA256SUMS >/dev/null)
+else
+  (cd "$artifact_dir" && shasum -a 256 plan.json > SHA256SUMS && shasum -a 256 -c SHA256SUMS >/dev/null)
+fi
+
+jq --exit-status --arg version "$version" --arg commit "$commit" '
+  .version == $version and .commit == $commit and .platform == "linux/amd64" and
+  (.images | length) == 7 and
+  all(.images[];
+    .tags == [$version,("sha-" + $commit)] and
+    .labels["org.opencontainers.image.version"] == $version and
+    .labels["org.opencontainers.image.revision"] == $commit and
+    .labels["org.opencontainers.image.source"] == "https://github.com/0x63616c/software-factory")
+' "$artifact_dir/plan.json" >/dev/null
+
+echo "release contract valid for $version: $artifact_dir/plan.json"

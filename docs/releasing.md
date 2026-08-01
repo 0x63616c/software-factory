@@ -27,12 +27,17 @@ not publish a unified `sf` binary and does not create moving `latest`, `v0`, or
 
 The tag-triggered release workflow verifies that the commit belongs to `main`,
 re-runs `verify`, the real Temporal Session integration, and deterministic E2E,
-then publishes all seven images with full-version and commit-SHA tags. It adds
+then builds all seven images under immutable commit-SHA tags. Only after every
+build succeeds does it promote the complete set to full-version tags. It adds
 OCI source/version/revision labels, SBOM and provenance attestations, an image
 digest manifest, its `SHA256SUMS`, and a non-draft GitHub Release.
 
-If any gate or image fails, the release is not published. Fix forward on `main`
-and choose a new version; never move or reuse a published tag.
+If any gate or image build fails, no SemVer image tag or GitHub Release is
+published. A registry failure during final promotion can leave an incomplete
+set of version tags but cannot create the GitHub Release; rerunning the workflow
+is idempotent because every promotion names the already-built digest. Fix
+forward on `main` and choose a new version after any content change; never move
+or reuse a published tag.
 
 ## Consumer verification
 

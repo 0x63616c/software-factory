@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	temporalclient "go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 
 	"github.com/0x63616c/software-factory/internal/activities"
 	checkpointclient "github.com/0x63616c/software-factory/internal/clients/checkpoint"
+	temporalclient "github.com/0x63616c/software-factory/internal/clients/temporal"
 	"github.com/0x63616c/software-factory/internal/clock"
 	"github.com/0x63616c/software-factory/internal/store"
 	"github.com/0x63616c/software-factory/internal/work"
@@ -156,7 +156,7 @@ type fakeGitHubCredentialSource struct{}
 func (fakeGitHubCredentialSource) InstallationToken(context.Context) (work.GitHubCredential, error) {
 	return work.GitHubCredential{
 		Token: work.NewCredential("e2e-github-token"), Login: "software-factory-e2e[bot]", AccountID: 1,
-		ExpiresAt: time.Now().UTC().Add(time.Hour),
+		ExpiresAt: clock.System{}.Now().UTC().Add(time.Hour),
 	}, nil
 }
 

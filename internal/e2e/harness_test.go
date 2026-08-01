@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"go.temporal.io/sdk/activity"
-	temporalclient "go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
@@ -31,7 +30,9 @@ import (
 	factoryapi "github.com/0x63616c/software-factory/internal/api"
 	"github.com/0x63616c/software-factory/internal/blobs"
 	"github.com/0x63616c/software-factory/internal/clients/codexresponses"
+	temporalclient "github.com/0x63616c/software-factory/internal/clients/temporal"
 	"github.com/0x63616c/software-factory/internal/clock"
+	"github.com/0x63616c/software-factory/internal/config"
 	"github.com/0x63616c/software-factory/internal/database/databasetest"
 	"github.com/0x63616c/software-factory/internal/prompts"
 	"github.com/0x63616c/software-factory/internal/store"
@@ -99,7 +100,9 @@ func runE2E(t *testing.T) e2eResult {
 		t.Fatalf("start Dispatcher: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = temporal.Client().CancelWorkflow(context.Background(), dispatcher.GetID(), dispatcher.GetRunID())
+		if err := temporal.Client().CancelWorkflow(context.Background(), dispatcher.GetID(), dispatcher.GetRunID()); err != nil {
+			t.Errorf("cancel Dispatcher: %v", err)
+		}
 	})
 
 	ticket = waitForTerminalTicket(t, apiServer.URL, ticket.ID)
@@ -116,38 +119,50 @@ func createTicket(t *testing.T, baseURL string) e2eTicket {
 	if err != nil {
 		t.Fatalf("create Ticket through API: %v", err)
 	}
-	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		body, _ := io.ReadAll(response.Body)
+		body, readErr := io.ReadAll(response.Body)
+		if readErr != nil {
+			t.Fatalf("read create Ticket error response: %v", readErr)
+		}
 		t.Fatalf("create Ticket status = %d: %s", response.StatusCode, body)
 	}
 	var ticket e2eTicket
 	if err := json.NewDecoder(response.Body).Decode(&ticket); err != nil {
 		t.Fatalf("decode created Ticket: %v", err)
 	}
+	if err := response.Body.Close(); err != nil {
+		t.Fatalf("close create Ticket response: %v", err)
+	}
 	return ticket
 }
 
 func waitForTerminalTicket(t *testing.T, baseURL string, ticketID int64) e2eTicket {
 	t.Helper()
-	deadline := time.Now().Add(45 * time.Second)
-	for time.Now().Before(deadline) {
+	ctx, cancel := context.WithTimeout(t.Context(), 45*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
 		response, err := http.Get(fmt.Sprintf("%s/v1/tickets/%d", baseURL, ticketID))
 		if err != nil {
 			t.Fatalf("read Ticket through API: %v", err)
 		}
 		var ticket e2eTicket
 		decodeErr := json.NewDecoder(response.Body).Decode(&ticket)
-		response.Body.Close()
+		if err := response.Body.Close(); err != nil {
+			t.Fatalf("close read Ticket response: %v", err)
+		}
 		if response.StatusCode == http.StatusOK && decodeErr == nil {
 			if ticket.State == "done" || ticket.State == "failed" {
 				return ticket
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			t.Fatalf("Ticket %d did not become terminal", ticketID)
+		case <-ticker.C:
+		}
 	}
-	t.Fatalf("Ticket %d did not become terminal", ticketID)
-	return e2eTicket{}
 }
 
 func readRuns(t *testing.T, baseURL string, ticketID int64) e2eRuns {
@@ -156,14 +171,19 @@ func readRuns(t *testing.T, baseURL string, ticketID int64) e2eRuns {
 	if err != nil {
 		t.Fatalf("read Runs through API: %v", err)
 	}
-	defer response.Body.Close()
 	var runs e2eRuns
 	if response.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(response.Body)
+		body, readErr := io.ReadAll(response.Body)
+		if readErr != nil {
+			t.Fatalf("read Runs error response: %v", readErr)
+		}
 		t.Fatalf("read Runs status = %d: %s", response.StatusCode, body)
 	}
 	if err := json.NewDecoder(response.Body).Decode(&runs); err != nil {
 		t.Fatalf("decode Runs: %v", err)
+	}
+	if err := response.Body.Close(); err != nil {
+		t.Fatalf("close Runs response: %v", err)
 	}
 	return runs
 }
@@ -192,7 +212,7 @@ func resultFrom(ticket e2eTicket, runs e2eRuns, remainingWorkers int) e2eResult 
 
 func writeResult(t *testing.T, result e2eResult) {
 	t.Helper()
-	path := os.Getenv("SOFTWARE_FACTORY_E2E_RESULT")
+	path := config.E2EResultPath()
 	if path == "" {
 		return
 	}
@@ -281,11 +301,21 @@ func (fake *fakeResponses) serveHTTP(writer http.ResponseWriter, request *http.R
 		return
 	}
 	turn := fake.turns.Add(1)
-	encodedText, _ := json.Marshal(text)
+	encodedText, err := json.Marshal(text)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	writer.Header().Set("Content-Type", "text/event-stream")
-	_, _ = fmt.Fprintf(writer, "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_%d\"}}\n\n", turn)
-	_, _ = fmt.Fprintf(writer, "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":%s}]}}\n\n", encodedText)
-	_, _ = fmt.Fprintf(writer, "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_%d\",\"status\":\"completed\",\"usage\":{\"input_tokens\":10,\"output_tokens\":5,\"total_tokens\":15}}}\n\n", turn)
+	if _, err := fmt.Fprintf(writer, "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_%d\"}}\n\n", turn); err != nil {
+		return
+	}
+	if _, err := fmt.Fprintf(writer, "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":%s}]}}\n\n", encodedText); err != nil {
+		return
+	}
+	if _, err := fmt.Fprintf(writer, "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_%d\",\"status\":\"completed\",\"usage\":{\"input_tokens\":10,\"output_tokens\":5,\"total_tokens\":15}}}\n\n", turn); err != nil {
+		return
+	}
 }
 
 func startFactoryWorkers(
@@ -359,12 +389,18 @@ func startWorker(t *testing.T, temporalWorker worker.Worker) {
 
 func waitForRunWorkerCleanup(t *testing.T, runWorkers *fakeRunWorkers) {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(25 * time.Millisecond)
+	defer ticker.Stop()
+	for {
 		if runWorkers.remaining() == 0 {
 			return
 		}
-		time.Sleep(25 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			t.Fatalf("Run Workers remaining after terminal workflow = %d", runWorkers.remaining())
+		case <-ticker.C:
+		}
 	}
-	t.Fatalf("Run Workers remaining after terminal workflow = %d", runWorkers.remaining())
 }

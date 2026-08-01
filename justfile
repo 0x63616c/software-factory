@@ -4,10 +4,7 @@ default:
     @just --list
 
 bootstrap:
-    go version
-    bun --version
-    sqlc version
-    golangci-lint --version
+    ./scripts/bootstrap.sh
 
 archive-check:
     ./scripts/archive-check.sh
@@ -19,6 +16,7 @@ verify: archive-check
     git diff --exit-code -- internal/api/openapi.yaml internal/store/storedb web/src/api/generated.ts
     go test -race ./...
     golangci-lint run
+    golangci-lint run --build-tags=e2e ./internal/e2e/...
     bun run --cwd web typecheck
     bun run --cwd web test
     bun run --cwd web build

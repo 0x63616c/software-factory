@@ -13,6 +13,17 @@ permissions:
   contents: read
 
 jobs:
+  image-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      value: ${{ steps.matrix.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Emit canonical image matrix
+        id: matrix
+        run: |
+          echo "value=$(jq -c '{include: [.images[]]}' release/images.json)" >> "$GITHUB_OUTPUT"
+
   verify:
     runs-on: ubuntu-latest
     services:
@@ -43,6 +54,8 @@ jobs:
         run: |
           go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+      - name: Verify pinned contributor toolchain
+        run: just bootstrap
       - name: Install console dependencies
         run: bun install --cwd web --frozen-lockfile
       - name: Verify active standalone tree
@@ -81,26 +94,11 @@ jobs:
           if-no-files-found: error
 
   images:
-    needs: [verify, temporal-session, e2e]
+    needs: [image-matrix, verify, temporal-session, e2e]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: worker
-            dockerfile: images/worker/Dockerfile
-          - name: run-worker
-            dockerfile: images/run-worker/Dockerfile
-          - name: relay
-            dockerfile: images/relay/Dockerfile
-          - name: api
-            dockerfile: images/api/Dockerfile
-          - name: blobs
-            dockerfile: images/blobs/Dockerfile
-          - name: codec
-            dockerfile: images/codec/Dockerfile
-          - name: console
-            dockerfile: web/Dockerfile
+      matrix: ${{ fromJSON(needs.image-matrix.outputs.value) }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
