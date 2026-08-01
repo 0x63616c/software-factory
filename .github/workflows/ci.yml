@@ -18,7 +18,7 @@ jobs:
     outputs:
       value: ${{ steps.matrix.outputs.value }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Emit canonical image matrix
         id: matrix
         run: |
@@ -41,17 +41,17 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.2.19
-      - uses: extractions/setup-just@v3
+      - uses: extractions/setup-just@v4
       - name: Install required system tools
         run: |
           sudo apt-get update
@@ -72,8 +72,8 @@ jobs:
   temporal-session:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
@@ -83,17 +83,17 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
-      - uses: extractions/setup-just@v3
+      - uses: extractions/setup-just@v4
       - name: Run durable AgentWorkflow E2E
         run: just e2e
       - name: Upload machine-checkable E2E result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: software-factory-e2e-result
           path: .artifacts/e2e/result.json
@@ -106,10 +106,10 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.image-matrix.outputs.value) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v4
       - name: Build ${{ matrix.name }} image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.dockerfile }}
