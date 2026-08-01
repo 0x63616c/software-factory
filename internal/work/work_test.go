@@ -221,7 +221,7 @@ func TestCredentialFileRedactsItselfThroughTheInterfaceSlogActuallyUses(t *testi
 	var _ slog.LogValuer = work.CredentialFile{}
 
 	var buf bytes.Buffer
-	slog.New(slog.NewTextHandler(&buf, nil)).Info("writing the sandbox credential",
+	slog.New(slog.NewTextHandler(&buf, nil)).Info("writing the Run Worker credential",
 		"file", work.NewCredentialFile([]byte(`{"tokens":{"access_token":"`+secret+`"}}`)))
 
 	if strings.Contains(buf.String(), secret) {
@@ -259,7 +259,7 @@ func TestPermanentSurvivesWrapping(t *testing.T) {
 
 	// The marker is only useful if it reaches the activity boundary through the
 	// layers of context every error picks up on the way up.
-	wrapped := fmt.Errorf("creating the sandbox for ticket #312: %w", work.ErrPermanent)
+	wrapped := fmt.Errorf("creating the Run Worker for ticket #312: %w", work.ErrPermanent)
 	if !errors.Is(wrapped, work.ErrPermanent) {
 		t.Error("a wrapped ErrPermanent no longer reports as permanent; the retry decision would silently flip to retryable")
 	}
@@ -269,7 +269,7 @@ func TestPermanentIsDistinctFromOtherSentinels(t *testing.T) {
 	t.Parallel()
 
 	if errors.Is(work.ErrFileNotFound, work.ErrPermanent) {
-		t.Error("a missing sandbox file reports as permanent; absence is a signal a stage keys off, not a reason to stop retrying")
+		t.Error("a missing Run Worker file reports as permanent; absence is a signal a stage keys off, not a reason to stop retrying")
 	}
 }
 

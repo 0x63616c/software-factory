@@ -20,7 +20,7 @@ import (
 	"go.temporal.io/sdk/temporal"
 )
 
-// ToolActivities owns sandbox-side generic tool dispatch and retry records.
+// ToolActivities owns Run Worker generic tool dispatch and retry records.
 type ToolActivities struct {
 	blobs         blobs.Store
 	artifacts     agent.ArtifactStore
@@ -32,12 +32,12 @@ type ToolActivities struct {
 	toolsets      map[agent.ToolsetID]agenttool.Set
 }
 
-// NewToolActivities constructs the sandbox-side generic tool activity.
+// NewToolActivities constructs the Run Worker generic tool activity.
 func NewToolActivities(blobStore blobs.Store, clk clock.Clock, toolsets ...agenttool.Set) (*ToolActivities, error) {
 	return newToolActivities(blobStore, clk, noopAgentMetrics{}, slog.New(slog.NewTextHandler(io.Discard, nil)), toolsets...)
 }
 
-// NewObservedToolActivities constructs production sandbox-side tool activities.
+// NewObservedToolActivities constructs production Run Worker tool activities.
 func NewObservedToolActivities(
 	blobStore blobs.Store,
 	clk clock.Clock,

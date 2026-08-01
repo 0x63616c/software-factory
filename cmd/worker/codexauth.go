@@ -22,7 +22,7 @@ import (
 const codexRefresherTimeout = 20 * time.Second
 
 // newCodexAuthSource builds the durable credential source used by the main
-// worker's direct Responses client. The credential never reaches a sandbox.
+// worker's direct Responses client. The credential never reaches a Run Worker.
 //
 // It reads cfg.RunWorkerNamespace and cfg.CodexAuthSecretName rather than a new
 // environment variable: the worker's Role is already pinned to exactly that

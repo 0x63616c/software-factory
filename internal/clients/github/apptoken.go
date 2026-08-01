@@ -63,7 +63,7 @@ type appAuth struct {
 	identity       botAttribution
 }
 
-// botAttribution is the validated GitHub identity commits made by a sandbox
+// botAttribution is the validated GitHub identity commits made by a Run Worker
 // must carry.
 type botAttribution struct {
 	Login     string
@@ -202,9 +202,9 @@ func (a *appAuth) botLoginLocked(ctx context.Context) (string, error) {
 	return a.cachedBotLogin, nil
 }
 
-// attribution resolves the complete identity a sandbox needs to configure git
+// attribution resolves the complete identity a Run Worker needs to configure git
 // commit attribution. The public user lookup intentionally uses the base
-// client: GET /users/{username} accepts no App JWT, and a sandbox token must
+// client: GET /users/{username} accepts no App JWT, and a Run Worker token must
 // not be minted before this identity is known to be valid.
 func (a *appAuth) attribution(ctx context.Context) (botAttribution, error) {
 	a.identityMu.Lock()

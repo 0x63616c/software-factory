@@ -12,9 +12,9 @@ import (
 const maxInlineToolOutputBytes = 64 << 10
 
 // NewToolsets constructs both immutable production catalogues from the same
-// Go definitions used by the sandbox handlers. Repository resolution is
+// Go definitions used by the Run Worker handlers. Repository resolution is
 // deferred until execution so the main worker can advertise schemas without a
-// checkout and the sandbox worker can start before CloneRepo completes.
+// checkout and the Run Worker can start before CloneRepo completes.
 func NewToolsets(repositoryRoot, artifactIdentity string, blobStore blobs.Store) ([]agenttool.Set, error) {
 	if blobStore == nil {
 		return nil, fmt.Errorf("agent toolsets need a blob store")

@@ -12,7 +12,7 @@ type BudgetKind string
 const (
 	// BudgetModelTurns limits direct provider turns.
 	BudgetModelTurns BudgetKind = "model_turns"
-	// BudgetToolCalls limits sandbox tool calls.
+	// BudgetToolCalls limits Run Worker tool calls.
 	BudgetToolCalls BudgetKind = "tool_calls"
 	// BudgetInputTokens limits provider input tokens.
 	BudgetInputTokens BudgetKind = "input_tokens"

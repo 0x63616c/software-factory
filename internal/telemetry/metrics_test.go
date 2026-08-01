@@ -370,7 +370,7 @@ software_factory_agent_budget_exhaustions_total{budget="tool_calls"} 1
 # HELP software_factory_agent_child_outcomes_total Agent child workflow terminal outcomes observed before return.
 # TYPE software_factory_agent_child_outcomes_total counter
 software_factory_agent_child_outcomes_total{outcome="cancelled"} 1
-# HELP software_factory_agent_tool_calls_total Sandbox tool calls, by bounded tool name and outcome.
+# HELP software_factory_agent_tool_calls_total Run Worker tool calls, by bounded tool name and outcome.
 # TYPE software_factory_agent_tool_calls_total counter
 software_factory_agent_tool_calls_total{outcome="succeeded",tool="read_file"} 1
 `

@@ -1,5 +1,5 @@
 // Package work holds the domain vocabulary of autonomous ticket work: the
-// ticket, the stages it passes through, the sandbox a stage runs in, and what a
+// ticket, the stages it passes through, the Run Worker a stage runs in, and what a
 // stage produces. Every seam in this service is expressed in these types, so no
 // third-party worldview — Kubernetes, GitHub or codex — crosses a module edge.
 package work
@@ -12,13 +12,13 @@ import (
 	"time"
 )
 
-// ErrFileNotFound reports that a path does not exist inside a sandbox.
+// ErrFileNotFound reports that a path does not exist inside a Run Worker.
 //
 // It is not merely an error code: absence is the signal a stage keys off to
 // decide whether it has already run, so implementations must distinguish "no
 // such file" from "could not tell" and never collapse the two. Compare with
 // errors.Is.
-var ErrFileNotFound = errors.New("file not found in sandbox")
+var ErrFileNotFound = errors.New("file not found in Run Worker")
 
 // ErrPermanent marks an error that a retry cannot fix, so a caller stops paying
 // for attempts that were never going to work.
@@ -153,7 +153,7 @@ func Pipeline() []Stage {
 // Ticket is a GitHub issue eligible for machine work.
 //
 // Title and Body are attacker-controllable: anyone who can file an issue
-// chooses them. They reach a model as prompt content and a sandbox as file
+// chooses them. They reach a model as prompt content and a Run Worker as file
 // content. They must never reach a shell, a command argument, a Kubernetes
 // object or a filesystem path — which is why the types that touch those things
 // take a ticket number rather than this struct.
@@ -253,7 +253,7 @@ func NewCredential(value string) Credential {
 	return Credential{value: value}
 }
 
-// GitHubCredential is the installation token written into a sandbox, together
+// GitHubCredential is the installation token written into a Run Worker, together
 // with the login GitHub attributes its use to.
 //
 // The login travels with the token rather than being fetched beside it because

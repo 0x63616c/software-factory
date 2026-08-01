@@ -52,7 +52,7 @@ func TestTheDrainFitsInsideThePodsGracePeriod(t *testing.T) {
 // TestTheDrainDoesNotPretendToOutlastAStage records the honest half of the
 // trade, so nobody "fixes" the drain by raising it to a stage's length.
 //
-// Stages run on sandbox Session workers, not this main worker. The main drain
+// Stages run on Run Worker Session workers, not this main worker. The main drain
 // must therefore not borrow a stage's 60-minute duration as its target:
 // raising this window towards MaxStageDuration would buy nothing and would blow
 // the grace period above.

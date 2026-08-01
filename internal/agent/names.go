@@ -9,7 +9,7 @@ const (
 	PrepareActivityName = "agent.prepare"
 	// ModelTurnActivityName is one direct provider turn.
 	ModelTurnActivityName = "agent.model-turn"
-	// ToolActivityName is one sandbox-affine typed tool execution.
+	// ToolActivityName is one Run Worker-affine typed tool execution.
 	ToolActivityName = "agent.tool"
 	// FinalizeActivityName decodes terminal structured text into a stage result.
 	FinalizeActivityName = "agent.finalize"

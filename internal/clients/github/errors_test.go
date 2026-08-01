@@ -218,7 +218,7 @@ func TestNamesTheOperationAndItsSubjectInEveryError(t *testing.T) {
 	}
 }
 
-func TestMintingTheSandboxTokenNamesItsOperation(t *testing.T) {
+func TestMintingTheRunWorkerTokenNamesItsOperation(t *testing.T) {
 	t.Parallel()
 
 	s, _ := newStub(t)
@@ -231,7 +231,7 @@ func TestMintingTheSandboxTokenNamesItsOperation(t *testing.T) {
 	if err == nil {
 		t.Fatal("InstallationToken succeeded where a failure was prepared")
 	}
-	if !strings.Contains(err.Error(), "sandbox") {
+	if !strings.Contains(err.Error(), "Run Worker") {
 		t.Errorf("error %q does not say what the token was for", err)
 	}
 }

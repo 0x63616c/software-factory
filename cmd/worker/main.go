@@ -61,8 +61,8 @@ const shutdownGrace = 5 * time.Second
 // timed out" and cancels every activity context. That is the opposite of a
 // drain, and it is what this file used to do while claiming otherwise.
 //
-// It is deliberately far shorter than a stage. Stages run on the sandbox
-// worker that hosts their Session, not on this main worker, so draining this
+// It is deliberately far shorter than a stage. Stages run on the Run Worker
+// that hosts their Session, not on this main worker, so draining this
 // process does not cancel them. This window is for the short control activities
 // here — a GitHub comment, a transcript write, a credential rotation — finishing
 // instead of being torn in half.
@@ -388,7 +388,7 @@ func newTargetRunWorkerControlActivities(
 		Binder: checkpointBinder, RepositoryBinder: checkpointBinder,
 		Template: activities.RunWorkerTemplate{
 			Image: cfg.RunWorkerImage, CPURequest: cfg.RunWorkerCPURequest, MemoryLimit: cfg.RunWorkerMemoryLimit,
-			DeadlineSeconds: work.SandboxDeadlineSeconds,
+			DeadlineSeconds: work.RunWorkerDeadlineSeconds,
 			Env: map[string]string{
 				work.GhConfigDirEnv:               work.GhConfigDir,
 				work.RunWorkerTemporalHostPortEnv: cfg.TemporalHostPort, work.RunWorkerTemporalNamespaceEnv: cfg.TemporalNamespace,

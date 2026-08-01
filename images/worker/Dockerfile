@@ -2,9 +2,9 @@
 
 # The software-factory Temporal worker (ADR-0011): the process that dispatches
 # factory Tickets, owns each stage's AgentWorkflow child, calls the model and
-# persists reference-backed transcripts. Per-ticket sandbox workers execute
+# persists reference-backed transcripts. Per-ticket Run Workers execute
 # only the typed tool activity. This is the first pod in the cluster with the
-# provider credential and the Kubernetes grant used to create those sandboxes.
+# provider credential and the Kubernetes grant used to create those Run Workers.
 #
 # `cmd/worker` landed (D1, #340) and CI builds this image on every change to it
 # — the `build-software-factory-worker` job. The note that used to sit here,
@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 # distroless static: no shell, no package manager, nothing to exec into. That is
 # worth more here than in any other image in this repo — this is the only
 # workload holding a ServiceAccount token, and the blast radius of a foothold in
-# it is the sandbox namespace's whole RBAC grant.
+# it is the Run Worker namespace's whole RBAC grant.
 #
 # It ships ca-certificates (GitHub, the OpenAI auth endpoint) and /etc/passwd
 # entries for uid 65532. NO tzdata, deliberately: A3 (#331) renders every

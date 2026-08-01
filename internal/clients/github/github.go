@@ -2,7 +2,7 @@
 // only place go-github's types exist. It holds the GitHub App identity: it
 // signs the App JWT, exchanges it for installation tokens, and keeps one for
 // its own calls while minting separate, narrower, always-fresh ones for
-// sandboxes to push with.
+// Run Workers to push with.
 package github
 
 import (
@@ -388,18 +388,18 @@ func (c *Client) PostComment(ctx context.Context, number int, body string) error
 	return nil
 }
 
-// InstallationToken mints a fresh, repository-scoped token for a sandbox to
+// InstallationToken mints a fresh, repository-scoped token for a Run Worker to
 // push with.
 //
 // It deliberately bypasses the cache. The cached token has an arbitrary
 // remaining lifetime — possibly three minutes — while the implement stage
 // pushes a branch up to an hour later.
 func (c *Client) InstallationToken(ctx context.Context) (work.GitHubCredential, error) {
-	const op = "minting a repository-scoped installation token for the sandbox"
+	const op = "minting a repository-scoped installation token for the Run Worker"
 
 	// Resolved before the token is minted, deliberately: this is a cached read
 	// after the first call, and a failure here must not leave a live token
-	// minted for a sandbox that never receives it. See work.GitHubCredential
+	// minted for a Run Worker that never receives it. See work.GitHubCredential
 	// for why gh cannot proceed without it.
 	identity, err := c.auth.attribution(ctx)
 	if err != nil {
@@ -426,10 +426,10 @@ func (c *Client) InstallationToken(ctx context.Context) (work.GitHubCredential, 
 	}
 
 	// Note what is absent: issues:write, because the WORKER posts status and
-	// clears the label — the sandbox runs agent-authored code and has no
+	// clears the label — the Run Worker runs agent-authored code and has no
 	// business writing to the issue — and actions/checks/statuses, because
 	// nothing in this pipeline reruns or watches CI.
-	c.log.InfoContext(ctx, "minted a repository-scoped installation token for a sandbox",
+	c.log.InfoContext(ctx, "minted a repository-scoped installation token for a Run Worker",
 		"repository", c.repo, "login", identity.Login, "account_id", identity.AccountID)
 	return work.GitHubCredential{Token: work.NewCredential(token), Login: identity.Login, AccountID: identity.AccountID, ExpiresAt: expiresAt}, nil
 }

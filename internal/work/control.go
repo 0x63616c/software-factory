@@ -55,7 +55,7 @@ type Config struct {
 	PollIntervalSeconds int64 `json:"pollIntervalSeconds"`
 
 	// OrphanGraceSeconds is both how often the orphan sweep runs and how old a
-	// sandbox pod must be before the sweep will delete it for having no live
+	// Run Worker pod must be before the sweep will delete it for having no live
 	// run.
 	//
 	// One value for both because they are the same judgement — how long a pod
@@ -132,7 +132,7 @@ func (c Config) PollInterval() time.Duration {
 	return time.Duration(c.PollIntervalSeconds) * time.Second
 }
 
-// OrphanGrace is how old an unaccounted-for sandbox pod must be before the
+// OrphanGrace is how old an unaccounted-for Run Worker pod must be before the
 // sweep deletes it, and how often that sweep runs.
 func (c Config) OrphanGrace() time.Duration {
 	return time.Duration(c.OrphanGraceSeconds) * time.Second

@@ -7,7 +7,7 @@ import (
 )
 
 // ErrInvalidRun reports a run-shaped value the workflows cannot run on: a
-// policy with no timeouts, a sandbox template with no image.
+// policy with no timeouts, or a Run Worker template with no image.
 //
 // It is separate from the errors Config.Validate returns because the two are
 // answered by different people. A bad Config arrives on a signal and is
@@ -74,7 +74,7 @@ type RunPolicy struct {
 	StageHeartbeatTimeout time.Duration
 
 	// RunTimeout is what Temporal gives the whole run. It must exceed the
-	// stages' own budget, and the sandbox pod's Kubernetes deadline must exceed
+	// stages' own budget, and the Run Worker pod's Kubernetes deadline must exceed
 	// it in turn — that ladder is the invariant, and it is checked rather than
 	// derived so this cannot quietly disagree with the numbers D1 declares.
 	RunTimeout time.Duration
@@ -95,7 +95,7 @@ type RunPolicy struct {
 // DefaultRunPolicy is the single source of ADR-0011's per-run numbers.
 func DefaultRunPolicy() RunPolicy {
 	// The ladder itself lives in durations.go and is referenced, not copied:
-	// the inequalities between these three and SandboxDeadline are the
+	// the inequalities between these three and RunWorkerDeadline are the
 	// invariant, and a second set of literals is how two of them drift apart
 	// without anything failing.
 	return RunPolicy{

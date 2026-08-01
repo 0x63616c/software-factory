@@ -200,13 +200,13 @@ func TestTargetDispatcherStartsWithOneTicketAtATime(t *testing.T) {
 }
 
 func TestRepoDirIsInsideTheWorkspaceRootWithoutBeingIt(t *testing.T) {
-	// Inside, because transfer.go confines every write to the sandbox root.
+	// Inside, because transfer.go confines every write to the Run Worker root.
 	// Not equal to it, because the run's own scaffolding lives at the root and
 	// a checkout over the top of that puts prompts inside the git working tree.
 	if !strings.HasPrefix(RepoDir, WorkspaceRoot+"/") {
 		t.Errorf("RepoDir = %q, want a path under %q", RepoDir, WorkspaceRoot)
 	}
 	if RepoDir == WorkspaceRoot {
-		t.Errorf("RepoDir must not be the sandbox root itself: %q", RepoDir)
+		t.Errorf("RepoDir must not be the Run Worker root itself: %q", RepoDir)
 	}
 }

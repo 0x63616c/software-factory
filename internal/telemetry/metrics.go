@@ -179,11 +179,11 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 			Buckets:   prometheus.ExponentialBuckets(1024, 2, 12),
 		}, []string{labelSource}),
 		agentToolCalls: counter(reg, "agent_tool_calls_total",
-			"Sandbox tool calls, by bounded tool name and outcome.", []string{labelTool, labelOutcome}),
+			"Run Worker tool calls, by bounded tool name and outcome.", []string{labelTool, labelOutcome}),
 		agentToolDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: namespace,
 			Name:      "agent_tool_duration_seconds",
-			Help:      "Wall-clock duration of one sandbox tool call.",
+			Help:      "Wall-clock duration of one Run Worker tool call.",
 			Buckets:   []float64{0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30, 60, 120},
 		}, []string{labelTool, labelOutcome}),
 		agentActivityRetries: counter(reg, "agent_activity_retries_total",
@@ -202,7 +202,7 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 	return m
 }
 
-// AgentToolCall records one sandbox tool invocation at its activity boundary.
+// AgentToolCall records one Run Worker tool invocation at its activity boundary.
 func (m *Metrics) AgentToolCall(tool string, outcome AgentOutcome, conversationBytes int64, took time.Duration) {
 	labels := prometheus.Labels{
 		labelTool:    m.bounded.fold(labelTool, tool),

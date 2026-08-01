@@ -86,7 +86,7 @@ type Input struct {
 
 // Render assembles the stage's whole prompt.
 //
-// The result is one string, written into the sandbox as a file. It is never an
+// The result is one string, written into the Run Worker as a file. It is never an
 // argument to anything: the argv-only guarantee in AGENTS.md exists because
 // this string contains text an issue author chose.
 //

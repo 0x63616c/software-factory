@@ -20,7 +20,11 @@ The main worker requires:
 - `CHECKPOINT_API_URL`, `BLOBS_URL`, `METRICS_ADDR`, and downward-API `POD_NAME`.
 - `CODEX_RESPONSES_ENDPOINT` and `CODEX_AUTH_SECRET_NAME`. The named Secret
   contains the subscription-backed credential document and is read/rotated by
-  the main worker only.
+  the main worker only. Its file shape is a provisioning compatibility boundary:
+  an operator may create it once with local `codex login` and seed it out of
+  band using `scripts/seed-codex-auth.sh`, but no Software Factory service or
+  Run Worker image installs or invokes Codex CLI. Runtime model calls use the
+  direct Responses interface.
 - `GITHUB_OWNER`, `GITHUB_REPO`, positive `GITHUB_APP_ID` and
   `GITHUB_APP_INSTALLATION_ID`, plus `GITHUB_APP_PRIVATE_KEY_PEM_FILE`. The file
   contains the base64 text of the App PEM, not a raw PEM.

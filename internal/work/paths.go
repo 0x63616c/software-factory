@@ -97,7 +97,7 @@ const RepoDir = WorkspaceRoot + "/repo"
 // rewrite. It needs its own credential file because it has no code path that
 // reads git's: git resolves a token through credential.helper and a
 // git-credential-store file, and gh looks only at GH_TOKEN in the environment
-// or at this file. The same installation token therefore reaches the sandbox
+// or at this file. The same installation token therefore reaches the Run Worker
 // twice, in two formats — see clone.go's writeGhCredentials for why the
 // environment is the wrong one of the two.
 //

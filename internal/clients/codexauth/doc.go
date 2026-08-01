@@ -1,7 +1,7 @@
 // Package codexauth owns the model provider's durable OAuth credential. It is
 // the only software-factory component that holds or presents a refresh token.
 // Direct Responses calls receive only a derived access-token document through
-// Source.ManagedCredentialFile; ticket sandboxes receive no provider material.
+// Source.ManagedCredentialFile; Run Workers receive no provider material.
 //
 // # Refresh invariants
 //
@@ -27,9 +27,12 @@
 //
 // # Operator recovery
 //
-// Fatal states require `codex login` followed by an out-of-band re-seed using
-// scripts/seed-codex-auth.sh. Pulumi must never own the Secret contents because
-// a later apply could overwrite a rotated credential with a spent value.
+// Fatal states require a one-time, operator-local `codex login` followed by an
+// out-of-band re-seed using scripts/seed-codex-auth.sh. This is a credential
+// provisioning compatibility boundary only: the service and Run Worker images
+// neither install nor invoke Codex CLI. Pulumi must never own the Secret
+// contents because a later apply could overwrite a rotated credential with a
+// spent value.
 //
 // # Derived model credential
 //

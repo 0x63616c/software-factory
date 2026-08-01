@@ -21,7 +21,7 @@ const (
 	// StartToCloseTimeout of the activity that runs it.
 	//
 	// ADR-0011 sets it at 60 minutes, "deliberately generous until real timings
-	// exist". It is also an input to INV-3 in codexauth: a sandbox holds a
+	// exist". It is also an input to INV-3 in codexauth: a Run Worker holds a
 	// credential copy it cannot refresh, so the refresh margin has to outlast a
 	// whole stage. codexauth takes it positionally, with no default, precisely
 	// so this constant is the only place it is written.
@@ -67,22 +67,22 @@ const (
 	// could reach, not the common case, so this has to fit it.
 	MaxRunDuration = 24 * time.Hour
 
-	// SandboxDeadline is the pod's activeDeadlineSeconds, above the run
-	// timeout so Kubernetes never kills a sandbox a live run still expects.
+	// RunWorkerDeadline is the pod's activeDeadlineSeconds, above the run
+	// timeout so Kubernetes never kills a Run Worker a live run still expects.
 	// A stage whose pod vanished under it reports an exec failure with no
 	// cause, which is the most expensive kind of failure to diagnose.
-	SandboxDeadline = 25 * time.Hour
+	RunWorkerDeadline = 25 * time.Hour
 
-	// SandboxDeadlineSeconds is that deadline in the units Kubernetes takes,
+	// RunWorkerDeadlineSeconds is that deadline in the units Kubernetes takes,
 	// converted here rather than at the call site so the units cannot be got
 	// wrong twice.
-	SandboxDeadlineSeconds = int64(SandboxDeadline / time.Second)
+	RunWorkerDeadlineSeconds = int64(RunWorkerDeadline / time.Second)
 )
 
 // Step 3 (D1/D4 in the addendum to the sandbox-as-worker spec, #434) adds two
 // more deadlines to the same ladder: workflow.SessionOptions.ExecutionTimeout
 // and .CreationTimeout, for the Session the WorkTicket workflow holds open
-// across a run's sandbox pod. Both are var, not const, because the second is
+// across a run's Run Worker pod. Both are var, not const, because the second is
 // derived from DefaultRunPolicy() rather than written as a literal — see its
 // own comment — and a const cannot call a function. Neither is configurable
 // for the same reason nothing else on this ladder is.
@@ -91,7 +91,7 @@ var (
 	// long the Session covering one ticket's run may stay open.
 	//
 	// At or above MaxRunDuration, the same direction durations_test.go already
-	// checks for SandboxDeadline against MaxRunDuration: a session that expires
+	// checks for RunWorkerDeadline against MaxRunDuration: a session that expires
 	// before the run it serves fails every stage after it, while one that
 	// outlives the run is merely pointless rather than actively wrong. Set
 	// equal to MaxRunDuration rather than padded further above it — nothing
@@ -101,7 +101,7 @@ var (
 	SessionExecutionTimeout = MaxRunDuration
 
 	// SessionCreationTimeout is workflow.SessionOptions.CreationTimeout: how
-	// long workflow.CreateSession waits for a sandbox pod's embedded worker to
+	// long workflow.CreateSession waits for a Run Worker pod's embedded worker to
 	// claim the session-creation task before failing loudly. Verified against
 	// the SDK's own source that this is a real, enforced bound and not merely
 	// documentation (sdk-go@v1.47.0: session creation is a regular activity

@@ -47,24 +47,24 @@ func TestKubernetesNeverKillsAPodTemporalStillBelievesIn(t *testing.T) {
 	t.Parallel()
 
 	// ADR-0011: activeDeadlineSeconds sits above the workflow run timeout. The
-	// other order gives a stage whose sandbox vanished under it, reported as a
+	// other order gives a stage whose Run Worker vanished under it, reported as a
 	// exec failure with no cause.
-	if SandboxDeadline <= MaxRunDuration {
-		t.Errorf("SandboxDeadline (%s) does not exceed MaxRunDuration (%s): Kubernetes would delete a sandbox a live run still expects",
-			SandboxDeadline, MaxRunDuration)
+	if RunWorkerDeadline <= MaxRunDuration {
+		t.Errorf("RunWorkerDeadline (%s) does not exceed MaxRunDuration (%s): Kubernetes would delete a Run Worker a live run still expects",
+			RunWorkerDeadline, MaxRunDuration)
 	}
 }
 
-func TestSandboxDeadlineSecondsIsThatDeadlineInSeconds(t *testing.T) {
+func TestRunWorkerDeadlineSecondsIsThatDeadlineInSeconds(t *testing.T) {
 	t.Parallel()
 
 	// It is handed to a Kubernetes field measured in seconds. A units mistake
 	// here is a pod that dies in minutes or outlives the cluster.
-	if want := int64(SandboxDeadline / time.Second); SandboxDeadlineSeconds != want {
-		t.Errorf("SandboxDeadlineSeconds = %d, want %d", SandboxDeadlineSeconds, want)
+	if want := int64(RunWorkerDeadline / time.Second); RunWorkerDeadlineSeconds != want {
+		t.Errorf("RunWorkerDeadlineSeconds = %d, want %d", RunWorkerDeadlineSeconds, want)
 	}
-	if SandboxDeadlineSeconds <= 0 {
-		t.Errorf("SandboxDeadlineSeconds = %d; Kubernetes reads a non-positive activeDeadlineSeconds as no deadline at all", SandboxDeadlineSeconds)
+	if RunWorkerDeadlineSeconds <= 0 {
+		t.Errorf("RunWorkerDeadlineSeconds = %d; Kubernetes reads a non-positive activeDeadlineSeconds as no deadline at all", RunWorkerDeadlineSeconds)
 	}
 }
 
@@ -78,7 +78,7 @@ func TestEveryDurationIsPositive(t *testing.T) {
 		{name: "MaxStageDuration", d: MaxStageDuration},
 		{name: "StageHeartbeatTimeout", d: StageHeartbeatTimeout},
 		{name: "MaxRunDuration", d: MaxRunDuration},
-		{name: "SandboxDeadline", d: SandboxDeadline},
+		{name: "RunWorkerDeadline", d: RunWorkerDeadline},
 		{name: "SessionExecutionTimeout", d: SessionExecutionTimeout},
 		{name: "SessionCreationTimeout", d: SessionCreationTimeout},
 	}

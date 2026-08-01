@@ -13,7 +13,7 @@ import (
 
 // remedy is the one sentence every fatal message ends with, because for all of
 // them the next step is the same and it is a human's.
-const remedy = "run `codex login` locally and re-seed the secret with scripts/seed-codex-auth.sh"
+const remedy = "run `codex login` once on an operator workstation and re-seed the secret with scripts/seed-codex-auth.sh; Codex CLI is provisioning-only and never runs in the service"
 
 // Source yields a refresh-token-free credential document to the direct model
 // adapter, refreshing and rotating the stored credential when its token nears

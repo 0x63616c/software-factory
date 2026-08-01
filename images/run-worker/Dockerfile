@@ -19,7 +19,7 @@
 #
 # The version comes from the image tag rather than a second declaration, and it
 # is deliberately the same Go the worker is built with and the same one go.mod
-# declares: a ticket that edits this module is tested inside this sandbox, so a
+# declares: a ticket that edits this module is tested inside this Run Worker, so a
 # toolchain skew here shows up as a test failure the reviewer cannot reproduce.
 FROM golang:1.26.5-trixie AS build
 WORKDIR /src
@@ -222,15 +222,15 @@ RUN git config --system credential.helper /usr/local/bin/git-credential-projecte
 # runAsUser/runAsGroup/fsGroup to 1000 (runWorkerUID) so local file operations
 # invariant holds — `test -e` exiting 1 must mean absent rather than unreadable,
 # which is only true while one uid owns everything it writes under /work.
-RUN groupadd --gid 1000 sandbox \
-    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash sandbox
+RUN groupadd --gid 1000 runworker \
+    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash runworker
 
 # /work is an emptyDir at runtime, so this directory is MASKED the moment the
 # pod starts and nothing baked under it survives. It exists for the `docker run`
 # case and to document the mount point.
 RUN install -d -o 1000 -g 1000 -m 0755 /work
 
-ENV HOME=/home/sandbox
+ENV HOME=/home/runworker
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # WORKDIR is the working directory inherited by local typed tool executions

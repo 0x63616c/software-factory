@@ -11,10 +11,11 @@ import (
 // the credential it protects therefore land at one linearization point, and a
 // lease held while the credential moved is not representable.
 const (
-	// CredentialKey holds the codex CLI's own credential file, byte-preserved
-	// except for the fields a rotation rewrites. Seeding is a straight file
-	// copy after a local `codex login`, with no translation step to get wrong
-	// at 3am.
+	// CredentialKey holds the Codex CLI-compatible credential document used
+	// only as the operator provisioning format, byte-preserved except for the
+	// fields a rotation rewrites. Seeding is a straight file copy after a local
+	// `codex login`, with no translation step to get wrong at 3am. Neither the
+	// service nor a Run Worker invokes the CLI.
 	CredentialKey = "auth.json"
 
 	// StateKey holds the lease and the credential's generation counter. It

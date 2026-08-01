@@ -16,9 +16,9 @@ func TestTheDeadlineLadderHoldsEndToEnd(t *testing.T) {
 	if policy.RunBudget() >= policy.RunTimeout {
 		t.Fatalf("stages may use %s but the run is allowed only %s", policy.RunBudget(), policy.RunTimeout)
 	}
-	if policy.RunTimeout >= work.SandboxDeadline {
+	if policy.RunTimeout >= work.RunWorkerDeadline {
 		t.Fatalf("the run may take %s but Kubernetes kills the pod at %s — the pod would die under a live run",
-			policy.RunTimeout, work.SandboxDeadline)
+			policy.RunTimeout, work.RunWorkerDeadline)
 	}
 	if policy.StageHeartbeatTimeout >= policy.StageTimeout {
 		t.Fatalf("a heartbeat timeout of %s cannot fire inside a stage timeout of %s",

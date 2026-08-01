@@ -171,7 +171,7 @@ func TestCachesBotAttributionButMintsAFreshSandboxToken(t *testing.T) {
 		t.Errorf("GET /users/%s count = %d, want 1", testBotLogin, got)
 	}
 	if got := s.count("POST " + exchangePath); got != 2 {
-		t.Errorf("sandbox token exchanges = %d, want 2", got)
+		t.Errorf("Run Worker token exchanges = %d, want 2", got)
 	}
 }
 
@@ -188,7 +188,7 @@ func TestDoesNotMintASandboxTokenWhenBotProfileLookupFails(t *testing.T) {
 		t.Fatal("InstallationToken succeeded despite a failed bot profile lookup")
 	}
 	if got := s.count("POST " + exchangePath); got != 0 {
-		t.Errorf("sandbox token exchanges = %d, want 0 after profile lookup failure", got)
+		t.Errorf("Run Worker token exchanges = %d, want 0 after profile lookup failure", got)
 	}
 	if login, err := c.auth.botLogin(context.Background()); err != nil || login != testBotLogin {
 		t.Errorf("botLogin = %q, %v; want cached login %q and no error", login, err, testBotLogin)
@@ -215,7 +215,7 @@ func TestRejectsMalformedBotProfilesBeforeMintingASandboxToken(t *testing.T) {
 				t.Fatal("InstallationToken succeeded despite a malformed bot profile")
 			}
 			if got := s.count("POST " + exchangePath); got != 0 {
-				t.Errorf("sandbox token exchanges = %d, want 0 after malformed profile", got)
+				t.Errorf("Run Worker token exchanges = %d, want 0 after malformed profile", got)
 			}
 		})
 	}
@@ -234,7 +234,7 @@ func TestDoesNotGrantTheSandboxIssuesWrite(t *testing.T) {
 	granted, _ := decodeBody(t, s.first(t, "POST "+exchangePath))["permissions"].(map[string]any)
 	for _, name := range []string{"issues", "actions", "checks", "statuses"} {
 		if _, present := granted[name]; present {
-			t.Errorf("the sandbox token requests %s; the worker writes to the issue, not the sandbox", name)
+			t.Errorf("the Run Worker token requests %s; the main worker writes to the issue, not the Run Worker", name)
 		}
 	}
 }
@@ -271,10 +271,10 @@ func TestDoesNotHandTheSandboxTheCachedToken(t *testing.T) {
 	}
 
 	if got := s.count("POST " + exchangePath); got != 2 {
-		t.Errorf("exchanged %d times, want 2 — the sandbox gets a fresh full-hour token", got)
+		t.Errorf("exchanged %d times, want 2 — the Run Worker gets a fresh full-hour token", got)
 	}
 	if cred.Token.Reveal() != "installation-token-2" {
-		t.Errorf("the sandbox got %q, want the freshly minted token", cred.Token.Reveal())
+		t.Errorf("the Run Worker got %q, want the freshly minted token", cred.Token.Reveal())
 	}
 }
 
