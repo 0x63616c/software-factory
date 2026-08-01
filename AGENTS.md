@@ -1,10 +1,8 @@
 # AGENTS.md - software-factory
 
-> Keep this file and `AGENTS.md` synchronized. If one changes, the other must be updated
-> in the same commit so the repo has one active set of agent instructions.
-
-> Keep this file and `agents.md` synchronized. If one changes, the other must be updated
-> in the same commit so the repo has one active set of agent instructions.
+> Keep this file as the active source of agent instructions. If a lower-case
+> `agents.md` exists in this repo, keep it synchronized with this file in the same
+> commit. On case-insensitive filesystems, this is the same file.
 
 > **Scope: the active standalone repository, excluding `_archived/`.**
 > Everything in this file and in `docs/` governs the Go module, console, and every
