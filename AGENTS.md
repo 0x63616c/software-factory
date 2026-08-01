@@ -1,5 +1,11 @@
 # AGENTS.md - software-factory
 
+> Keep this file and `AGENTS.md` synchronized. If one changes, the other must be updated
+> in the same commit so the repo has one active set of agent instructions.
+
+> Keep this file and `agents.md` synchronized. If one changes, the other must be updated
+> in the same commit so the repo has one active set of agent instructions.
+
 > **Scope: the active standalone repository, excluding `_archived/`.**
 > Everything in this file and in `docs/` governs the Go module, console, and every
 > image under `images/`. The Run Worker
@@ -189,4 +195,6 @@ func TestReplayDispatcherHistory(t *testing.T) {
 - Never silence a linter. Fix the code.
 - Stop and ask before anything irreversible or outward-facing.
 
-use ./scritps/relase-version.sh v0.1.4 --create-tag to release a new version
+For releases, follow [`docs/releasing.md`](./docs/releasing.md): run `just release`
+from a clean merge-to-main commit, then push the generated tag to start the
+GitHub release workflow.
