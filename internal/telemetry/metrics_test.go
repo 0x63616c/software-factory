@@ -357,16 +357,12 @@ func TestAgentToolAndLifecycleMetricsUseBoundedOperationalLabels(t *testing.T) {
 	metrics := telemetry.NewMetrics(reg)
 	metrics.AgentToolCall("read_file", telemetry.AgentOutcomeSucceeded, 8192, 250*time.Millisecond)
 	metrics.AgentActivityRetry("agent.tool")
-	metrics.AgentBudgetExhausted("tool_calls")
 	metrics.AgentChildFinished(telemetry.AgentOutcomeCancelled)
 
 	want := `
 # HELP software_factory_agent_activity_retries_total Retried agent activity invocations observed after attempt one.
 # TYPE software_factory_agent_activity_retries_total counter
 software_factory_agent_activity_retries_total{activity="agent.tool"} 1
-# HELP software_factory_agent_budget_exhaustions_total Agent workflows stopped by a fixed resource budget.
-# TYPE software_factory_agent_budget_exhaustions_total counter
-software_factory_agent_budget_exhaustions_total{budget="tool_calls"} 1
 # HELP software_factory_agent_child_outcomes_total Agent child workflow terminal outcomes observed before return.
 # TYPE software_factory_agent_child_outcomes_total counter
 software_factory_agent_child_outcomes_total{outcome="cancelled"} 1
@@ -377,7 +373,6 @@ software_factory_agent_tool_calls_total{outcome="succeeded",tool="read_file"} 1
 	if err := testutil.CollectAndCompare(reg, strings.NewReader(want),
 		"software_factory_agent_tool_calls_total",
 		"software_factory_agent_activity_retries_total",
-		"software_factory_agent_budget_exhaustions_total",
 		"software_factory_agent_child_outcomes_total",
 	); err != nil {
 		t.Error(err)

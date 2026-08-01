@@ -237,7 +237,7 @@ func TestBuildStageInputProducesTheDeclaredVariableNames(t *testing.T) {
 		t.Run(string(tc.stage), func(t *testing.T) {
 			t.Parallel()
 
-			in, err := buildStageInput(tc.stage, 1, work.MaxReviewTurns, prior, work.AgentPromptContext{})
+			in, err := buildStageInput(tc.stage, 1, prior, work.AgentPromptContext{})
 			if err != nil {
 				t.Fatalf("buildStageInput(%s): %v", tc.stage, err)
 			}

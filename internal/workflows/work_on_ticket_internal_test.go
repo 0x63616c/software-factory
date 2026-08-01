@@ -9,7 +9,10 @@ import (
 	"github.com/0x63616c/software-factory/internal/agent"
 	"github.com/0x63616c/software-factory/internal/work"
 	enums "go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/testsuite"
+	"go.temporal.io/sdk/workflow"
 )
 
 func TestRemainingSessionExecutionTimeoutUsesOneAbsoluteDeadline(t *testing.T) {
@@ -32,7 +35,45 @@ func TestRemainingSessionExecutionTimeoutUsesOneAbsoluteDeadline(t *testing.T) {
 	}
 }
 
-func TestTargetFailureFreshAttemptPolicyPreservesSemanticAttemptBudget(t *testing.T) {
+func TestAgentContinueAsNewCarriesOnlyThePolicyItsHistoryNeeds(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name      string
+		unbounded bool
+	}{
+		{name: "legacy replay retains legacy wire fields"},
+		{name: "unbounded execution drops legacy wire fields", unbounded: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			legacy := defaultLegacyAgentLimits()
+			input := AgentWorkflowInput{LegacyLimits: legacy}
+			state := AgentWorkflowState{ConversationRef: agent.ConversationRef{Key: "conversation"}}
+			suite := &testsuite.WorkflowTestSuite{}
+			environment := suite.NewTestWorkflowEnvironment()
+			environment.ExecuteWorkflow(func(ctx workflow.Context) error {
+				return continueAgentWorkflowAsNew(ctx, input, state, test.unbounded)
+			})
+			var continued *workflow.ContinueAsNewError
+			if !errors.As(environment.GetWorkflowError(), &continued) {
+				t.Fatalf("workflow error = %v, want ContinueAsNew", environment.GetWorkflowError())
+			}
+			var next AgentWorkflowInput
+			if err := converter.GetDefaultDataConverter().FromPayloads(continued.Input, &next); err != nil {
+				t.Fatalf("decode continued input: %v", err)
+			}
+			if test.unbounded && next.LegacyLimits != nil {
+				t.Fatalf("unbounded continuation retained legacy limits: %+v", next.LegacyLimits)
+			}
+			if !test.unbounded && (next.LegacyLimits == nil || *next.LegacyLimits != *legacy) {
+				t.Fatalf("legacy continuation limits = %+v, want %+v", next.LegacyLimits, legacy)
+			}
+		})
+	}
+}
+
+func TestTargetFailureFreshAttemptPolicyReplacesOnlyUnrecoverableExecutions(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {
 		kind agent.TerminalFailureKind
@@ -41,16 +82,12 @@ func TestTargetFailureFreshAttemptPolicyPreservesSemanticAttemptBudget(t *testin
 		{kind: agent.TerminalFailureSessionLost, want: false},
 		{kind: agent.TerminalFailureAmbiguousToolExecution, want: true},
 		{kind: agent.TerminalFailureInvalidProviderOutcome, want: true},
-		{kind: agent.TerminalFailureBudgetExhausted, want: true},
 		{kind: agent.TerminalFailureModelExhausted, want: false},
 		{kind: agent.TerminalFailureRateLimited, want: false},
 		{kind: agent.TerminalFailureAuthentication, want: false},
 	} {
 		t.Run(string(test.kind), func(t *testing.T) {
 			failure := &agent.TerminalFailure{Kind: test.kind}
-			if test.kind == agent.TerminalFailureBudgetExhausted {
-				failure.Budget = agent.BudgetModelTurns
-			}
 			if got := targetFailureNeedsFreshAttempt(failure); got != test.want {
 				t.Fatalf("targetFailureNeedsFreshAttempt(%s) = %t, want %t", test.kind, got, test.want)
 			}

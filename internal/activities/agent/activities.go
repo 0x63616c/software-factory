@@ -54,9 +54,6 @@ func (activities *Activities) RecordLifecycle(_ context.Context, input Lifecycle
 	default:
 		return invalidInput("unsupported agent child outcome %q", input.Outcome)
 	}
-	if input.Budget != "" {
-		activities.metrics.AgentBudgetExhausted(input.Budget)
-	}
 	activities.metrics.AgentChildFinished(input.Outcome)
 	return nil
 }
@@ -404,7 +401,7 @@ func modelRequest(
 		case agent.ItemUserText:
 			providerItems = append(providerItems, codexresponses.UserText(item.Text))
 		case agent.ItemAssistantText:
-			return codexresponses.TurnRequest{}, fmt.Errorf("model conversation contains terminal assistant text")
+			providerItems = append(providerItems, codexresponses.AssistantText(item.Text))
 		case agent.ItemFunctionCall:
 			providerItems = append(providerItems, codexresponses.FunctionCall(codexresponses.ToolCall{
 				ID:        item.ID,

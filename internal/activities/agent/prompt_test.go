@@ -22,7 +22,7 @@ type recordingPromptRenderer struct {
 	prior  work.PriorTurns
 }
 
-func (renderer *recordingPromptRenderer) Render(key work.StageKey, detail work.TicketDetail, prior work.PriorTurns, _ work.AgentPromptContext, _ int) (string, []byte, error) {
+func (renderer *recordingPromptRenderer) Render(key work.StageKey, detail work.TicketDetail, prior work.PriorTurns, _ work.AgentPromptContext) (string, []byte, error) {
 	renderer.key, renderer.detail, renderer.prior = key, detail, prior
 	return renderer.prompt, renderer.schema, nil
 }
@@ -33,7 +33,7 @@ func (*recordingPromptRenderer) Decode(work.Stage, []byte) (work.StageOutput, er
 
 type decodingPromptRenderer struct{}
 
-func (decodingPromptRenderer) Render(work.StageKey, work.TicketDetail, work.PriorTurns, work.AgentPromptContext, int) (string, []byte, error) {
+func (decodingPromptRenderer) Render(work.StageKey, work.TicketDetail, work.PriorTurns, work.AgentPromptContext) (string, []byte, error) {
 	return "", nil, fmt.Errorf("Render must not run while finalizing")
 }
 

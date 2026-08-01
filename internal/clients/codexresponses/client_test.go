@@ -48,6 +48,51 @@ func TestEncodeRequestIncludesStrictJSONSchemaResponseFormat(t *testing.T) {
 	}
 }
 
+func TestEncodeRequestIncludesPriorAssistantTextAsConversationInput(t *testing.T) {
+	t.Parallel()
+
+	encoded, err := encodeRequest(TurnRequest{
+		Model: "gpt-test", Instructions: "work carefully",
+		Input: []InputItem{
+			UserText("Implement the plan."),
+			AssistantText("Implemented the plan."),
+			UserText("Address the failing check."),
+		},
+		ToolChoice: ToolChoiceAuto, TextVerbosity: TextVerbosityMedium,
+	})
+	if err != nil {
+		t.Fatalf("encodeRequest() error = %v", err)
+	}
+	var request struct {
+		Store              bool   `json:"store"`
+		PreviousResponseID string `json:"previous_response_id"`
+		Input              []struct {
+			Role    string `json:"role"`
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+		} `json:"input"`
+	}
+	if err := json.Unmarshal(encoded, &request); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if request.Store || request.PreviousResponseID != "" {
+		t.Fatalf("encoded continuation relies on provider state: %#v", request)
+	}
+	if len(request.Input) != 3 {
+		t.Fatalf("encoded conversation = %#v, want three messages", request.Input)
+	}
+	wantRoles := []string{"user", "assistant", "user"}
+	wantText := []string{"Implement the plan.", "Implemented the plan.", "Address the failing check."}
+	for index := range wantRoles {
+		if request.Input[index].Role != wantRoles[index] || len(request.Input[index].Content) != 1 ||
+			request.Input[index].Content[0].Type != "input_text" || request.Input[index].Content[0].Text != wantText[index] {
+			t.Fatalf("encoded conversation[%d] = %#v", index, request.Input[index])
+		}
+	}
+}
+
 type staticCredentialSource struct {
 	credential Credential
 }

@@ -29,20 +29,6 @@ func TestStageHeartbeatTimeoutAllowsFiveMinutesForFirstEvent(t *testing.T) {
 	}
 }
 
-func TestARunCanContainItsStages(t *testing.T) {
-	t.Parallel()
-
-	// Not len(Pipeline()) (3, under the pipeline rewrite): a run's real worst
-	// case is the implement/review loop's derived ceiling, MaxStageInvocations
-	// (19) stage invocations, not one pass over the three stages Pipeline()
-	// names. See RunPolicy.Validate's identical check.
-	stages := MaxStageInvocations * MaxStageDuration
-	if MaxRunDuration <= stages {
-		t.Errorf("MaxRunDuration (%s) does not exceed the %d stage invocations it can contain (%s): a run would time out while a stage was still legitimately working",
-			MaxRunDuration, MaxStageInvocations, stages)
-	}
-}
-
 func TestKubernetesNeverKillsAPodTemporalStillBelievesIn(t *testing.T) {
 	t.Parallel()
 
@@ -103,19 +89,11 @@ func TestASessionCanOutlastItsRun(t *testing.T) {
 	}
 }
 
-// TestSessionCreationTimeoutMatchesWhatWaitSandboxReadyAlreadyBounds pins D4's
-// derivation rather than its number: with no warm pool (D1), CreateSession's
-// wait for a pod to claim its session is the same wait WaitSandboxReady
-// already performs under controlOptions() today, so this must equal
-// ControlTimeout*ControlAttempts and not a second literal that could quietly
-// stop agreeing with it.
-func TestSessionCreationTimeoutMatchesWhatWaitSandboxReadyAlreadyBounds(t *testing.T) {
+func TestSessionCreationTimeoutAllowsRunWorkerStartup(t *testing.T) {
 	t.Parallel()
 
-	policy := DefaultRunPolicy()
-	want := policy.ControlTimeout * time.Duration(policy.ControlAttempts)
+	want := 10 * time.Minute
 	if SessionCreationTimeout != want {
-		t.Errorf("SessionCreationTimeout = %s, want %s (DefaultRunPolicy's ControlTimeout*ControlAttempts, the same bound WaitSandboxReady is already held to)",
-			SessionCreationTimeout, want)
+		t.Errorf("SessionCreationTimeout = %s, want %s", SessionCreationTimeout, want)
 	}
 }

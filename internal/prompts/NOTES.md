@@ -6,7 +6,7 @@ prefixed to every stage prompt; the stage file is the suffix.
 **Rewritten for #435's pipeline rewrite.** The pipeline was `plan → review → revise →
 implement → propose`, five stages run once each, in order. It is now `plan → implement →
 review`, and it loops: a red CI run sends `implement` around again in the same window, and a
-blocking review finding opens a fresh `implement` window afterward, under the turn budgets
+blocking review finding opens a fresh `implement` window afterward, before the Run deadline
 `internal/workflows`' loop enforces. `revise` and `propose` are gone, as stages and as words:
 `revise`'s job folded into `implement` (a plan an implementer finds wrong is a plan it
 deviates from, in its own report, not a fourth stage's document), and `propose`'s job —
@@ -178,7 +178,7 @@ that an override at one site is not read as licence to ignore the rest.
 - **Required headings.** Every stage's structure is prose ("useful ground to cover", "cover
   what you changed and why"), and the base states once that headings are advisory. No stage
   presents a bulleted skeleton, because a skeleton is a form and gets filled in.
-- **Token or time budgets.** No stage is told to hurry. Turn budgets are a workflow concern
+- **Deadlines.** No stage is told to hurry. Time limits are a workflow concern
   (`internal/workflows`' loop), not a prompt one.
 - **Any mention of the JSON envelope.** `--output-schema` enforces the envelope shape; telling
   the model about the wrapper invites it to hand-write JSON.

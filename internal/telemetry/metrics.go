@@ -36,7 +36,6 @@ const (
 	labelSource   = "source"
 	labelTool     = "tool"
 	labelActivity = "activity"
-	labelBudget   = "budget"
 )
 
 // AgentOutcome is one bounded provider, tool, or child outcome label.
@@ -117,7 +116,6 @@ type Metrics struct {
 	agentToolCalls         *prometheus.CounterVec
 	agentToolDuration      *prometheus.HistogramVec
 	agentActivityRetries   *prometheus.CounterVec
-	agentBudgetExhaustions *prometheus.CounterVec
 	agentChildOutcomes     *prometheus.CounterVec
 
 	// bounded caps how many distinct values each label key can export.
@@ -188,8 +186,6 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 		}, []string{labelTool, labelOutcome}),
 		agentActivityRetries: counter(reg, "agent_activity_retries_total",
 			"Retried agent activity invocations observed after attempt one.", []string{labelActivity}),
-		agentBudgetExhaustions: counter(reg, "agent_budget_exhaustions_total",
-			"Agent workflows stopped by a fixed resource budget.", []string{labelBudget}),
 		agentChildOutcomes: counter(reg, "agent_child_outcomes_total",
 			"Agent child workflow terminal outcomes observed before return.", []string{labelOutcome}),
 		bounded: newBoundedLabels(LabelValueLimit),
@@ -216,11 +212,6 @@ func (m *Metrics) AgentToolCall(tool string, outcome AgentOutcome, conversationB
 // AgentActivityRetry records one invocation whose Temporal attempt is greater than one.
 func (m *Metrics) AgentActivityRetry(activityName string) {
 	m.agentActivityRetries.WithLabelValues(m.bounded.fold(labelActivity, activityName)).Inc()
-}
-
-// AgentBudgetExhausted records the fixed limit that stopped one child.
-func (m *Metrics) AgentBudgetExhausted(budget string) {
-	m.agentBudgetExhaustions.WithLabelValues(m.bounded.fold(labelBudget, budget)).Inc()
 }
 
 // AgentChildFinished records one terminal child outcome.

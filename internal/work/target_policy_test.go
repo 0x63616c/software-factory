@@ -7,18 +7,12 @@ import (
 	"github.com/0x63616c/software-factory/internal/work"
 )
 
-func TestDefaultTargetRunPolicyEncodesTheTargetBudgets(t *testing.T) {
+func TestDefaultTargetRunPolicyEncodesTimeBasedControls(t *testing.T) {
 	t.Parallel()
 
 	policy := work.DefaultTargetRunPolicy()
 	if err := policy.Validate(); err != nil {
 		t.Fatalf("default target policy validates: %v", err)
-	}
-	if policy.MaxReviewSteps != 5 {
-		t.Fatalf("MaxReviewSteps = %d, want 5", policy.MaxReviewSteps)
-	}
-	if policy.MaxAgentAttempts != 25 {
-		t.Fatalf("MaxAgentAttempts = %d, want 25", policy.MaxAgentAttempts)
 	}
 	if policy.Agent.StartToCloseTimeout != 55*time.Minute {
 		t.Fatalf("agent StartToCloseTimeout = %s, want 55m", policy.Agent.StartToCloseTimeout)
@@ -83,8 +77,6 @@ func TestTargetRunPolicyAcceptsAValidResolvedSnapshotWithFutureDefaults(t *testi
 	t.Parallel()
 
 	policy := work.DefaultTargetRunPolicy()
-	policy.MaxReviewSteps = 8
-	policy.MaxAgentAttempts = 40
 	policy.Agent.StartToCloseTimeout = 65 * time.Minute
 	policy.Agent.ScheduleToCloseTimeout = 2 * time.Hour
 	policy.Agent.HeartbeatTimeout = 10 * time.Minute
@@ -97,25 +89,6 @@ func TestTargetRunPolicyAcceptsAValidResolvedSnapshotWithFutureDefaults(t *testi
 
 	if err := policy.Validate(); err != nil {
 		t.Fatalf("valid resolved future policy snapshot rejected: %v", err)
-	}
-}
-
-func TestTargetRunPolicyRejectsNonPositiveSemanticBudgets(t *testing.T) {
-	t.Parallel()
-
-	for _, field := range []string{"review steps", "agent attempts"} {
-		t.Run(field, func(t *testing.T) {
-			policy := work.DefaultTargetRunPolicy()
-			switch field {
-			case "review steps":
-				policy.MaxReviewSteps = 0
-			case "agent attempts":
-				policy.MaxAgentAttempts = 0
-			}
-			if err := policy.Validate(); err == nil {
-				t.Fatalf("non-positive %s accepted", field)
-			}
-		})
 	}
 }
 

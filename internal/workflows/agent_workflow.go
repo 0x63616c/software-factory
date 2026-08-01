@@ -16,12 +16,36 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-// AgentWorkflowInput starts one bounded stage agent.
+const (
+	agentUnboundedChangeID       = "agent-workflow-unbounded-v1"
+	agentUnboundedVersion        = 1
+	agentContinueAsNewAfterTurns = 8
+)
+
+// legacyAgentLimits decodes and reproduces pre-unbounded workflow commands
+// until their histories leave retention. New executions leave it zero.
+type legacyAgentLimits struct {
+	MaxModelTurns        int   `json:"max_model_turns"`
+	MaxToolCalls         int   `json:"max_tool_calls"`
+	MaxInputTokens       int64 `json:"max_input_tokens"`
+	MaxOutputTokens      int64 `json:"max_output_tokens"`
+	MaxConversationBytes int64 `json:"max_conversation_bytes"`
+	ContinueAsNewAfter   int   `json:"continue_as_new_after"`
+}
+
+func defaultLegacyAgentLimits() *legacyAgentLimits {
+	return &legacyAgentLimits{
+		MaxModelTurns: 24, MaxToolCalls: 96, MaxInputTokens: 500_000, MaxOutputTokens: 100_000,
+		MaxConversationBytes: 1 << 20, ContinueAsNewAfter: 8,
+	}
+}
+
+// AgentWorkflowInput starts one stage agent.
 type AgentWorkflowInput struct {
 	Attempt         activities.StageAttempt
 	ToolsetID       agent.ToolsetID
 	ToolTarget      agent.ToolTarget
-	Limits          agent.Limits
+	LegacyLimits    *legacyAgentLimits `json:"limits,omitempty"`
 	ModelTurnPolicy work.AgentActivityPolicy
 	ControlPolicy   work.ActivityPolicy
 	// Identity pins every durable agent artifact to one semantic execution.
@@ -46,7 +70,7 @@ type AgentWorkflowState struct {
 	TurnsSinceContinueAsNew int
 }
 
-// AgentWorkflowResult is the bounded typed result returned to WorkOnTicket.
+// AgentWorkflowResult is the typed result returned to WorkOnTicket.
 type AgentWorkflowResult struct {
 	Result          work.StageOutput
 	Usage           work.Usage
@@ -137,7 +161,8 @@ func validateAgentWorkflowResult(hasResult bool, failure *agent.TerminalFailure)
 	return nil
 }
 
-// AgentWorkflow runs one bounded reference-only model/tool loop.
+// AgentWorkflow runs one reference-only model/tool loop until it produces a
+// result, an unrecoverable failure, or a time-based workflow deadline fires.
 func AgentWorkflow(ctx workflow.Context, input AgentWorkflowInput) (workflowResult AgentWorkflowResult, workflowErr error) {
 	defer func() { recordAgentLifecycle(ctx, workflowErr, workflowResult.Failure) }()
 	if err := validateAgentInput(input); err != nil {
@@ -158,10 +183,15 @@ func AgentWorkflow(ctx workflow.Context, input AgentWorkflowInput) (workflowResu
 	controlContext := workflow.WithActivityOptions(ctx, agentControlActivityOptions(input.ControlPolicy))
 	modelContext := workflow.WithActivityOptions(ctx, agentModelTurnActivityOptions(input.ModelTurnPolicy))
 	state := AgentWorkflowState{}
+	unbounded := workflow.GetVersion(ctx, agentUnboundedChangeID, workflow.DefaultVersion, agentUnboundedVersion) != workflow.DefaultVersion
 	if input.State == nil {
+		attempt := input.Attempt
+		if unbounded {
+			attempt.LegacyMaxReviewSteps = 0
+		}
 		var prepared agentactivities.PrepareOutput
 		if err := workflow.ExecuteActivity(controlContext, agent.PrepareActivityName, agentactivities.PrepareInput{
-			Attempt: input.Attempt, Identity: identity, CacheKey: input.CacheKey, Seed: input.Seed,
+			Attempt: attempt, Identity: identity, CacheKey: input.CacheKey, Seed: input.Seed,
 		}).Get(ctx, &prepared); err != nil {
 			return AgentWorkflowResult{}, fmt.Errorf("prepare agent workflow: %w", err)
 		}
@@ -178,15 +208,19 @@ func AgentWorkflow(ctx workflow.Context, input AgentWorkflowInput) (workflowResu
 		ModelTurns: state.ModelTurns, ToolCalls: state.ToolCalls,
 	}
 	conversationRef := state.ConversationRef
-	if conversationRef.Bytes > input.Limits.MaxConversationBytes {
-		return terminalAgentBudgetFailure(result, agent.BudgetConversationBytes)
+	if !unbounded && conversationRef.Bytes > input.LegacyLimits.MaxConversationBytes {
+		return terminalLegacyAgentBudgetFailure(result, "conversation_bytes")
 	}
 	var sessionContext workflow.Context
 	for {
-		if result.ModelTurns >= input.Limits.MaxModelTurns {
-			return terminalAgentBudgetFailure(result, agent.BudgetModelTurns)
+		if !unbounded && result.ModelTurns >= input.LegacyLimits.MaxModelTurns {
+			return terminalLegacyAgentBudgetFailure(result, "model_turns")
 		}
-		if state.TurnsSinceContinueAsNew >= input.Limits.ContinueAsNewAfter {
+		continueAsNewAfter := agentContinueAsNewAfterTurns
+		if !unbounded {
+			continueAsNewAfter = input.LegacyLimits.ContinueAsNewAfter
+		}
+		if state.TurnsSinceContinueAsNew >= continueAsNewAfter {
 			state.ConversationRef = conversationRef
 			state.TranscriptRef = result.TranscriptRef
 			state.Usage = result.Usage
@@ -194,7 +228,7 @@ func AgentWorkflow(ctx workflow.Context, input AgentWorkflowInput) (workflowResu
 			state.ModelTurns = result.ModelTurns
 			state.ToolCalls = result.ToolCalls
 			state.TurnsSinceContinueAsNew = 0
-			return result, continueAgentWorkflowAsNew(ctx, input, state)
+			return result, continueAgentWorkflowAsNew(ctx, input, state, unbounded)
 		}
 		modelTurn := result.ModelTurns + 1
 		var turn agent.ModelTurnResult
@@ -226,22 +260,22 @@ func AgentWorkflow(ctx workflow.Context, input AgentWorkflowInput) (workflowResu
 		if turn.TranscriptRef.Key != "" {
 			result.TranscriptRef = turn.TranscriptRef
 		}
-		if result.UsageMeasured && result.Usage.InputTokens > input.Limits.MaxInputTokens {
-			return terminalAgentBudgetFailure(result, agent.BudgetInputTokens)
+		if !unbounded && result.UsageMeasured && result.Usage.InputTokens > input.LegacyLimits.MaxInputTokens {
+			return terminalLegacyAgentBudgetFailure(result, "input_tokens")
 		}
-		if result.UsageMeasured && result.Usage.OutputTokens > input.Limits.MaxOutputTokens {
-			return terminalAgentBudgetFailure(result, agent.BudgetOutputTokens)
+		if !unbounded && result.UsageMeasured && result.Usage.OutputTokens > input.LegacyLimits.MaxOutputTokens {
+			return terminalLegacyAgentBudgetFailure(result, "output_tokens")
 		}
-		if conversationRef.Bytes > input.Limits.MaxConversationBytes {
-			return terminalAgentBudgetFailure(result, agent.BudgetConversationBytes)
+		if !unbounded && conversationRef.Bytes > input.LegacyLimits.MaxConversationBytes {
+			return terminalLegacyAgentBudgetFailure(result, "conversation_bytes")
 		}
 		switch turn.Outcome {
 		case agent.OutcomeToolCalls:
 			if len(turn.ToolCalls) == 0 {
 				return terminalAgentFailure(result, agent.TerminalFailureInvalidProviderOutcome)
 			}
-			if result.ToolCalls+len(turn.ToolCalls) > input.Limits.MaxToolCalls {
-				return terminalAgentBudgetFailure(result, agent.BudgetToolCalls)
+			if !unbounded && result.ToolCalls+len(turn.ToolCalls) > input.LegacyLimits.MaxToolCalls {
+				return terminalLegacyAgentBudgetFailure(result, "tool_calls")
 			}
 			if sessionContext == nil {
 				targetQueue := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
@@ -281,8 +315,8 @@ func AgentWorkflow(ctx workflow.Context, input AgentWorkflowInput) (workflowResu
 					result.TranscriptRef = toolOutput.TranscriptRef
 				}
 				result.ToolCalls++
-				if conversationRef.Bytes > input.Limits.MaxConversationBytes {
-					return terminalAgentBudgetFailure(result, agent.BudgetConversationBytes)
+				if !unbounded && conversationRef.Bytes > input.LegacyLimits.MaxConversationBytes {
+					return terminalLegacyAgentBudgetFailure(result, "conversation_bytes")
 				}
 			}
 			continue
@@ -315,8 +349,8 @@ func terminalAgentFailure(result AgentWorkflowResult, kind agent.TerminalFailure
 	return result, nil
 }
 
-func terminalAgentBudgetFailure(result AgentWorkflowResult, budget agent.BudgetKind) (AgentWorkflowResult, error) {
-	result.Failure = &agent.TerminalFailure{Kind: agent.TerminalFailureBudgetExhausted, Budget: budget}
+func terminalLegacyAgentBudgetFailure(result AgentWorkflowResult, budget string) (AgentWorkflowResult, error) {
+	result.Failure = &agent.TerminalFailure{Kind: agent.TerminalFailureKind("budget_exhausted"), Budget: budget}
 	return result, nil
 }
 
@@ -414,7 +448,7 @@ func agentLifecycleInput(terminalErr error, failure *agent.TerminalFailure) (age
 	}
 	if terminalErr == nil {
 		if failure != nil {
-			return agentactivities.LifecycleInput{Outcome: telemetry.AgentOutcomeFailed, Budget: string(failure.Budget)}, true
+			return agentactivities.LifecycleInput{Outcome: telemetry.AgentOutcomeFailed, Budget: failure.Budget}, true
 		}
 		return agentactivities.LifecycleInput{Outcome: telemetry.AgentOutcomeSucceeded}, true
 	}
@@ -435,14 +469,18 @@ func agentLifecycleInput(terminalErr error, failure *agent.TerminalFailure) (age
 	return input, true
 }
 
-func continueAgentWorkflowAsNew(ctx workflow.Context, input AgentWorkflowInput, state AgentWorkflowState) error {
+func continueAgentWorkflowAsNew(ctx workflow.Context, input AgentWorkflowInput, state AgentWorkflowState, unbounded bool) error {
+	legacyLimits := input.LegacyLimits
+	if unbounded {
+		legacyLimits = nil
+	}
 	return workflow.NewContinueAsNewError(ctx, AgentWorkflow, AgentWorkflowInput{
 		Attempt: activities.StageAttempt{
 			Key: input.Attempt.Key, Model: input.Attempt.Model,
 		},
 		ToolsetID:       input.ToolsetID,
 		ToolTarget:      input.ToolTarget,
-		Limits:          input.Limits,
+		LegacyLimits:    legacyLimits,
 		ModelTurnPolicy: input.ModelTurnPolicy,
 		ControlPolicy:   input.ControlPolicy,
 		Identity:        input.Identity,
@@ -462,10 +500,6 @@ func validateAgentInput(input AgentWorkflowInput) error {
 	}
 	if _, err := input.ToolTarget.TaskQueue(input.Attempt.Key.RunID); err != nil {
 		return fmt.Errorf("validate agent workflow tool target: %w", err)
-	}
-	if input.Limits.MaxModelTurns < 1 || input.Limits.MaxToolCalls < 0 || input.Limits.MaxInputTokens < 1 ||
-		input.Limits.MaxOutputTokens < 1 || input.Limits.MaxConversationBytes < 1 || input.Limits.ContinueAsNewAfter < 1 {
-		return fmt.Errorf("agent workflow limits must be positive")
 	}
 	if err := input.ModelTurnPolicy.Validate(); err != nil {
 		return fmt.Errorf("validate agent workflow model-turn policy: %w", err)

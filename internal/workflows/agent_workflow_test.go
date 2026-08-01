@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -73,7 +74,6 @@ func TestAgentWorkflowCompletesFromOneFinalModelTurn(t *testing.T) {
 		ToolsetID: "coding-read-v1", CacheKey: "run-7-plan",
 		ModelTurnPolicy: work.DefaultTargetRunPolicy().Agent,
 		ControlPolicy:   work.DefaultTargetRunPolicy().Recording,
-		Limits:          agent.Limits{MaxModelTurns: 3, MaxToolCalls: 4, MaxInputTokens: 1000, MaxOutputTokens: 1000, MaxConversationBytes: 1 << 20, ContinueAsNewAfter: 20},
 	}
 	environment.ExecuteWorkflow(workflows.AgentWorkflow, input)
 	if err := environment.GetWorkflowError(); err != nil {
@@ -412,8 +412,7 @@ func TestAgentWorkflowContinuesAsNewWithOnlyReferences(t *testing.T) {
 
 	const conversationBody = "large-conversation-content-must-not-enter-the-continuation-payload"
 	initial := agent.ConversationRef{Key: "conversations/run-7/0", Revision: 0, Bytes: 100, Digest: "initial"}
-	requested := agent.ConversationRef{Key: "conversations/run-7/1", Revision: 1, Bytes: 200, Digest: "requested"}
-	continued := agent.ConversationRef{Key: "conversations/run-7/2", Revision: 2, Bytes: 300, Digest: "continued"}
+	continued := agent.ConversationRef{Key: "conversations/run-7/16", Revision: 16, Bytes: 300, Digest: "continued"}
 	transcript := agent.TranscriptRef{Key: "transcripts/run-7", Bytes: 80, Digest: "transcript"}
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -423,15 +422,18 @@ func TestAgentWorkflowContinuesAsNewWithOnlyReferences(t *testing.T) {
 	environment.RegisterActivityWithOptions(func(context.Context, agentactivities.PrepareInput) (agentactivities.PrepareOutput, error) {
 		return agentactivities.PrepareOutput{ConversationRef: initial, TranscriptRef: transcript}, nil
 	}, activity.RegisterOptions{Name: agent.PrepareActivityName})
-	environment.RegisterActivityWithOptions(func(context.Context, agent.ModelTurnInput) (agent.ModelTurnResult, error) {
+	environment.RegisterActivityWithOptions(func(_ context.Context, input agent.ModelTurnInput) (agent.ModelTurnResult, error) {
 		return agent.ModelTurnResult{
-			Outcome: agent.OutcomeToolCalls, ToolsetFingerprint: testToolsetFingerprint, ConversationRef: requested,
-			ToolCalls: []agent.PendingToolCall{{CallID: "call_1", Name: "read_file"}},
-			Usage:     work.Usage{InputTokens: 10, OutputTokens: 2}, UsageMeasured: true,
+			Outcome: agent.OutcomeToolCalls, ToolsetFingerprint: testToolsetFingerprint,
+			ConversationRef: agent.ConversationRef{Key: fmt.Sprintf("conversations/run-7/%d", input.ModelTurn*2-1), Revision: input.ModelTurn*2 - 1, Bytes: 200, Digest: "requested"},
+			ToolCalls:       []agent.PendingToolCall{{CallID: fmt.Sprintf("call_%d", input.ModelTurn), Name: "read_file"}},
+			Usage:           work.Usage{InputTokens: 10, OutputTokens: 2}, UsageMeasured: true,
 		}, nil
 	}, activity.RegisterOptions{Name: agent.ModelTurnActivityName})
 	environment.RegisterActivityWithOptions(func(_ context.Context, input agent.ToolInput) (agent.ToolOutput, error) {
-		return agent.ToolOutput{CallID: input.Call.CallID, ConversationRef: continued}, nil
+		turn := input.ConversationRef.Revision/2 + 1
+		ref := agent.ConversationRef{Key: fmt.Sprintf("conversations/run-7/%d", turn*2), Revision: turn * 2, Bytes: 300, Digest: "continued"}
+		return agent.ToolOutput{CallID: input.Call.CallID, ConversationRef: ref}, nil
 	}, activity.RegisterOptions{Name: agent.ToolActivityName})
 	input := validAgentWorkflowInput(work.StageImplement)
 	identity := work.RunWorkerIdentity{RunID: "019fb900-0000-7000-8000-000000000001", Generation: 2}
@@ -445,7 +447,6 @@ func TestAgentWorkflowContinuesAsNewWithOnlyReferences(t *testing.T) {
 		SourceIdentity:  "agent/019fb900-0000-7000-8000-000000000001/step/8/attempt/1",
 		ConversationRef: agent.ConversationRef{Key: "conversations/agent/seed/0/digest", Bytes: 1, Digest: "digest"},
 	}
-	input.Limits.ContinueAsNewAfter = 1
 	environment.ExecuteWorkflow(workflows.AgentWorkflow, input)
 
 	var continuedAsNew *workflow.ContinueAsNewError
@@ -460,8 +461,8 @@ func TestAgentWorkflowContinuesAsNewWithOnlyReferences(t *testing.T) {
 		t.Fatalf("decode continued input: %v", err)
 	}
 	if next.State == nil || next.State.ConversationRef != continued || next.State.TranscriptRef != transcript ||
-		next.State.ToolsetFingerprint != testToolsetFingerprint || next.State.ModelTurns != 1 ||
-		next.State.ToolCalls != 1 || next.State.Usage.InputTokens != 10 {
+		next.State.ToolsetFingerprint != testToolsetFingerprint || next.State.ModelTurns != 8 ||
+		next.State.ToolCalls != 8 || next.State.Usage.InputTokens != 80 {
 		t.Fatalf("continued state = %#v", next.State)
 	}
 	if next.ToolTarget != input.ToolTarget {
@@ -475,6 +476,13 @@ func TestAgentWorkflowContinuesAsNewWithOnlyReferences(t *testing.T) {
 	}
 	if next.Seed == nil || *next.Seed != *input.Seed {
 		t.Fatalf("continued seed = %#v, want %#v", next.Seed, input.Seed)
+	}
+	continuedInput, err := json.Marshal(next)
+	if err != nil {
+		t.Fatalf("marshal continued input: %v", err)
+	}
+	if strings.Contains(string(continuedInput), `"limits"`) || strings.Contains(string(continuedInput), `"MaxReviewSteps"`) {
+		t.Fatalf("fresh continued input retained removed budget policy: %s", continuedInput)
 	}
 	if next.Attempt.Detail != (work.TicketDetail{}) || next.Attempt.Prior.Plan.Prose() != "" ||
 		next.Attempt.Prior.LatestImplement.Prose() != "" || next.Attempt.Prior.LatestReview.Prose() != "" ||
@@ -527,76 +535,47 @@ func TestAgentWorkflowResumesFromReferencesWithoutPreparingAgain(t *testing.T) {
 	}
 }
 
-func TestAgentWorkflowStopsAtModelToolAndTokenBudgets(t *testing.T) {
+func TestAgentWorkflowDoesNotStopAtResourceCounts(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name       string
-		limits     agent.Limits
-		turn       agent.ModelTurnResult
-		wantBudget agent.BudgetKind
-		wantTools  int
-	}{
-		{
-			name: "model turns", limits: agent.Limits{MaxModelTurns: 1, MaxToolCalls: 2, MaxInputTokens: 100, MaxOutputTokens: 100, MaxConversationBytes: 1000, ContinueAsNewAfter: 20},
-			turn: agent.ModelTurnResult{Outcome: agent.OutcomeToolCalls, ToolsetFingerprint: testToolsetFingerprint, ConversationRef: agent.ConversationRef{Revision: 1, Bytes: 100}, ToolCalls: []agent.PendingToolCall{{CallID: "call_1", Name: "read_file"}}, UsageMeasured: true}, wantBudget: agent.BudgetModelTurns, wantTools: 1,
-		},
-		{
-			name: "tool calls", limits: agent.Limits{MaxModelTurns: 2, MaxToolCalls: 0, MaxInputTokens: 100, MaxOutputTokens: 100, MaxConversationBytes: 1000, ContinueAsNewAfter: 20},
-			turn: agent.ModelTurnResult{Outcome: agent.OutcomeToolCalls, ToolsetFingerprint: testToolsetFingerprint, ConversationRef: agent.ConversationRef{Revision: 1, Bytes: 100}, ToolCalls: []agent.PendingToolCall{{CallID: "call_1", Name: "read_file"}}, UsageMeasured: true}, wantBudget: agent.BudgetToolCalls,
-		},
-		{
-			name: "input tokens", limits: agent.Limits{MaxModelTurns: 2, MaxToolCalls: 2, MaxInputTokens: 9, MaxOutputTokens: 100, MaxConversationBytes: 1000, ContinueAsNewAfter: 20},
-			turn: agent.ModelTurnResult{Outcome: agent.OutcomeFinalText, ToolsetFingerprint: testToolsetFingerprint, ConversationRef: agent.ConversationRef{Revision: 1, Bytes: 100}, FinalTextRef: agent.TextRef{Key: "text"}, Usage: work.Usage{InputTokens: 10}, UsageMeasured: true}, wantBudget: agent.BudgetInputTokens,
-		},
-		{
-			name: "output tokens", limits: agent.Limits{MaxModelTurns: 2, MaxToolCalls: 2, MaxInputTokens: 100, MaxOutputTokens: 9, MaxConversationBytes: 1000, ContinueAsNewAfter: 20},
-			turn: agent.ModelTurnResult{Outcome: agent.OutcomeFinalText, ToolsetFingerprint: testToolsetFingerprint, ConversationRef: agent.ConversationRef{Revision: 1, Bytes: 100}, FinalTextRef: agent.TextRef{Key: "text"}, Usage: work.Usage{OutputTokens: 10}, UsageMeasured: true}, wantBudget: agent.BudgetOutputTokens,
-		},
-		{
-			name: "conversation bytes", limits: agent.Limits{MaxModelTurns: 2, MaxToolCalls: 2, MaxInputTokens: 100, MaxOutputTokens: 100, MaxConversationBytes: 99, ContinueAsNewAfter: 20},
-			turn: agent.ModelTurnResult{Outcome: agent.OutcomeFinalText, ToolsetFingerprint: testToolsetFingerprint, ConversationRef: agent.ConversationRef{Revision: 1, Bytes: 100}, FinalTextRef: agent.TextRef{Key: "text"}, UsageMeasured: true}, wantBudget: agent.BudgetConversationBytes,
-		},
+	suite := &testsuite.WorkflowTestSuite{}
+	environment := suite.NewTestWorkflowEnvironment()
+	registerAgentLifecycle(environment, nil)
+	environment.SetWorkerOptions(worker.Options{EnableSessionWorker: true, MaxConcurrentSessionExecutionSize: 1})
+	environment.RegisterActivityWithOptions(func(context.Context, agentactivities.PrepareInput) (agentactivities.PrepareOutput, error) {
+		return agentactivities.PrepareOutput{ConversationRef: agent.ConversationRef{Revision: 0, Bytes: 50}}, nil
+	}, activity.RegisterOptions{Name: agent.PrepareActivityName})
+	turns := 0
+	environment.RegisterActivityWithOptions(func(context.Context, agent.ModelTurnInput) (agent.ModelTurnResult, error) {
+		turns++
+		if turns == 1 {
+			return agent.ModelTurnResult{
+				Outcome: agent.OutcomeToolCalls, ToolsetFingerprint: testToolsetFingerprint,
+				ConversationRef: agent.ConversationRef{Revision: 1, Bytes: 2 << 20},
+				ToolCalls:       []agent.PendingToolCall{{CallID: "call_1", Name: "read_file"}},
+				Usage:           work.Usage{InputTokens: 600_000, OutputTokens: 120_000}, UsageMeasured: true,
+			}, nil
+		}
+		return agent.ModelTurnResult{
+			Outcome: agent.OutcomeFinalText, ToolsetFingerprint: testToolsetFingerprint,
+			ConversationRef: agent.ConversationRef{Revision: 3, Bytes: 3 << 20}, FinalTextRef: agent.TextRef{Key: "text"},
+			Usage: work.Usage{InputTokens: 600_000, OutputTokens: 120_000}, UsageMeasured: true,
+		}, nil
+	}, activity.RegisterOptions{Name: agent.ModelTurnActivityName})
+	environment.RegisterActivityWithOptions(func(_ context.Context, input agent.ToolInput) (agent.ToolOutput, error) {
+		return agent.ToolOutput{CallID: input.Call.CallID, ConversationRef: agent.ConversationRef{Revision: 2, Bytes: 2 << 20}}, nil
+	}, activity.RegisterOptions{Name: agent.ToolActivityName})
+	environment.RegisterActivityWithOptions(func(context.Context, agentactivities.FinalizeInput) (agentactivities.FinalizeOutput, error) {
+		return testAgentFinalizeOutput(work.NewStageOutput(work.StageImplement, work.ImplementOutput{Report: "done"})), nil
+	}, activity.RegisterOptions{Name: agent.FinalizeActivityName})
+	input := validAgentWorkflowInput(work.StageImplement)
+	environment.ExecuteWorkflow(workflows.AgentWorkflow, input)
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("AgentWorkflow error = %v", err)
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			suite := &testsuite.WorkflowTestSuite{}
-			environment := suite.NewTestWorkflowEnvironment()
-			var lifecycle []agentactivities.LifecycleInput
-			registerAgentLifecycle(environment, &lifecycle)
-			environment.SetWorkerOptions(worker.Options{EnableSessionWorker: true, MaxConcurrentSessionExecutionSize: 1})
-			environment.RegisterActivityWithOptions(func(context.Context, agentactivities.PrepareInput) (agentactivities.PrepareOutput, error) {
-				return agentactivities.PrepareOutput{ConversationRef: agent.ConversationRef{Revision: 0, Bytes: 50}}, nil
-			}, activity.RegisterOptions{Name: agent.PrepareActivityName})
-			environment.RegisterActivityWithOptions(func(context.Context, agent.ModelTurnInput) (agent.ModelTurnResult, error) {
-				return test.turn, nil
-			}, activity.RegisterOptions{Name: agent.ModelTurnActivityName})
-			tools := 0
-			environment.RegisterActivityWithOptions(func(_ context.Context, input agent.ToolInput) (agent.ToolOutput, error) {
-				tools++
-				return agent.ToolOutput{CallID: input.Call.CallID, ConversationRef: agent.ConversationRef{Revision: 2, Bytes: 100}}, nil
-			}, activity.RegisterOptions{Name: agent.ToolActivityName})
-			environment.RegisterActivityWithOptions(func(context.Context, agentactivities.FinalizeInput) (agentactivities.FinalizeOutput, error) {
-				t.Fatal("finalize activity must not run after a budget is exhausted")
-				return agentactivities.FinalizeOutput{}, nil
-			}, activity.RegisterOptions{Name: agent.FinalizeActivityName})
-			input := validAgentWorkflowInput(work.StageImplement)
-			input.Limits = test.limits
-			environment.ExecuteWorkflow(workflows.AgentWorkflow, input)
-			if err := environment.GetWorkflowError(); err != nil {
-				t.Fatalf("AgentWorkflow error = %v", err)
-			}
-			var result workflows.AgentWorkflowResult
-			if err := environment.GetWorkflowResult(&result); err != nil || result.Failure == nil || !result.Failure.IsBudgetExhausted(test.wantBudget) {
-				t.Fatalf("GetWorkflowResult() error = %v, result = %#v", err, result)
-			}
-			if tools != test.wantTools {
-				t.Fatalf("tool calls = %d, want %d", tools, test.wantTools)
-			}
-			if len(lifecycle) != 1 || lifecycle[0].Outcome != telemetry.AgentOutcomeFailed || lifecycle[0].Budget != string(test.wantBudget) {
-				t.Fatalf("lifecycle = %#v, want one failure", lifecycle)
-			}
-		})
+	var result workflows.AgentWorkflowResult
+	if err := environment.GetWorkflowResult(&result); err != nil || result.Failure != nil || result.Result.Prose() != "done" {
+		t.Fatalf("GetWorkflowResult() error = %v, result = %#v", err, result)
 	}
 }
 
@@ -787,7 +766,6 @@ func validAgentWorkflowInput(stage work.Stage) workflows.AgentWorkflowInput {
 		ToolsetID: "coding-write-v1", CacheKey: "run-7-stage",
 		ModelTurnPolicy: work.DefaultTargetRunPolicy().Agent,
 		ControlPolicy:   work.DefaultTargetRunPolicy().Recording,
-		Limits:          agent.Limits{MaxModelTurns: 3, MaxToolCalls: 4, MaxInputTokens: 1000, MaxOutputTokens: 1000, MaxConversationBytes: 1 << 20, ContinueAsNewAfter: 20},
 	}
 }
 

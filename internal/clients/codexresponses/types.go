@@ -94,6 +94,8 @@ type InputType string
 const (
 	// InputUserText is a user-authored text message.
 	InputUserText InputType = "user_text"
+	// InputAssistantText replays one prior assistant-authored text message.
+	InputAssistantText InputType = "assistant_text"
 	// InputFunctionOutput returns one allowlisted tool's result to the model.
 	InputFunctionOutput InputType = "function_output"
 	// InputFunctionCall replays one prior assistant tool call for stateless SSE.
@@ -125,6 +127,11 @@ func FunctionCall(call ToolCall) InputItem {
 // UserText constructs a user text input.
 func UserText(text string) InputItem {
 	return InputItem{Type: InputUserText, Text: text}
+}
+
+// AssistantText constructs a prior assistant text input.
+func AssistantText(text string) InputItem {
+	return InputItem{Type: InputAssistantText, Text: text}
 }
 
 // TurnRequest describes one direct Codex Responses turn.

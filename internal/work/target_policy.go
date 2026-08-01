@@ -22,11 +22,6 @@ type TargetRunPolicy struct {
 	// this Run's candidate commit. It must never be inferred from a snapshot.
 	RequiredChecks []string
 
-	// MaxReviewSteps and MaxAgentAttempts are semantic budgets. Temporal's
-	// native activity retries do not decrement either value.
-	MaxReviewSteps   int
-	MaxAgentAttempts int
-
 	Agent              AgentActivityPolicy
 	AwaitCI            ActivityPolicy
 	Merge              ActivityPolicy
@@ -130,8 +125,6 @@ func DefaultTargetRunPolicy() TargetRunPolicy {
 		SemanticDeadline: 23 * time.Hour,
 		HardDeadline:     24 * time.Hour,
 		RequiredChecks:   []string{"test-software-factory"},
-		MaxReviewSteps:   5,
-		MaxAgentAttempts: 25,
 		Agent: AgentActivityPolicy{
 			StartToCloseTimeout:    55 * time.Minute,
 			ScheduleToCloseTimeout: 90 * time.Minute,
@@ -183,12 +176,6 @@ func (p TargetRunPolicy) Validate() error {
 			return fmt.Errorf("%w: required check %q appears more than once", ErrInvalidRun, check)
 		}
 		checks[check] = struct{}{}
-	}
-	if p.MaxReviewSteps <= 0 {
-		return fmt.Errorf("%w: target runs require a positive review-step budget, got %d", ErrInvalidRun, p.MaxReviewSteps)
-	}
-	if p.MaxAgentAttempts <= 0 {
-		return fmt.Errorf("%w: target runs require a positive agent-attempt budget, got %d", ErrInvalidRun, p.MaxAgentAttempts)
 	}
 	if err := p.validateAgent(); err != nil {
 		return err

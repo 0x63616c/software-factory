@@ -120,7 +120,7 @@ export type AttemptOutputCachedInputTokens = number | null;
 export type AttemptOutputEndedAt = string | null;
 
 /**
- * The terminal failure category, empty unless this Attempt failed.
+ * The terminal failure category, including retained historical values; empty unless this Attempt failed.
  */
 export type AttemptOutputFailureKind =
 	(typeof AttemptOutputFailureKind)[keyof typeof AttemptOutputFailureKind];
@@ -194,7 +194,7 @@ export interface AttemptOutput {
 	endedAt: AttemptOutputEndedAt;
 	/** The opaque identity captured for this semantic Attempt. */
 	executionId: string;
-	/** The terminal failure category, empty unless this Attempt failed. */
+	/** The terminal failure category, including retained historical values; empty unless this Attempt failed. */
 	failureKind: AttemptOutputFailureKind;
 	/** Whether a transcript is stored for this attempt. */
 	hasTranscript: boolean;
@@ -368,7 +368,7 @@ export interface RepositoryWrite {
 export type RunOutputEndedAt = string | null;
 
 /**
- * The target Run failure category. Empty when not failed.
+ * The target Run failure category, including retained historical budget values. Empty when not failed.
  */
 export type RunOutputFailureKind =
 	(typeof RunOutputFailureKind)[keyof typeof RunOutputFailureKind];
@@ -391,7 +391,7 @@ export const RunOutputFailureKind = {
 } as const;
 
 /**
- * The target Run outcome. Empty until terminal.
+ * The target Run outcome, including retained historical exhausted Runs. Empty until terminal.
  */
 export type RunOutputOutcome =
 	(typeof RunOutputOutcome)[keyof typeof RunOutputOutcome];
@@ -438,11 +438,11 @@ export interface RunOutput {
 	confirmedMerge?: ConfirmedMergeOutput;
 	/** RFC3339 UTC. Null until the Run ends. */
 	endedAt: RunOutputEndedAt;
-	/** The target Run failure category. Empty when not failed. */
+	/** The target Run failure category, including retained historical budget values. Empty when not failed. */
 	failureKind: RunOutputFailureKind;
 	/** Temporal's run id for this Run. */
 	id: string;
-	/** The target Run outcome. Empty until terminal. */
+	/** The target Run outcome, including retained historical exhausted Runs. Empty until terminal. */
 	outcome: RunOutputOutcome;
 	/** The latest active Step kind, falling back to the latest terminal Step kind. */
 	phase: RunOutputPhase;

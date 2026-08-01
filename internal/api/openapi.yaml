@@ -78,7 +78,7 @@ components:
           description: The opaque identity captured for this semantic Attempt.
           type: string
         failureKind:
-          description: The terminal failure category, empty unless this Attempt failed.
+          description: The terminal failure category, including retained historical values; empty unless this Attempt failed.
           enum:
             - ""
             - invalid_input
@@ -428,7 +428,7 @@ components:
             - string
             - "null"
         failureKind:
-          description: The target Run failure category. Empty when not failed.
+          description: The target Run failure category, including retained historical budget values. Empty when not failed.
           enum:
             - ""
             - invalid_input
@@ -448,7 +448,7 @@ components:
           description: Temporal's run id for this Run.
           type: string
         outcome:
-          description: The target Run outcome. Empty until terminal.
+          description: The target Run outcome, including retained historical exhausted Runs. Empty until terminal.
           enum:
             - ""
             - succeeded

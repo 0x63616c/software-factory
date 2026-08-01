@@ -287,6 +287,14 @@ func encodeRequest(request TurnRequest) ([]byte, error) {
 				Role:    "user",
 				Content: []wireInputContent{{Type: "input_text", Text: item.Text}},
 			})
+		case InputAssistantText:
+			if item.Text == "" {
+				return nil, fmt.Errorf("the Codex Responses turn contains a blank assistant input")
+			}
+			input = append(input, wireInputItem{
+				Role:    "assistant",
+				Content: []wireInputContent{{Type: "input_text", Text: item.Text}},
+			})
 		case InputFunctionOutput:
 			if item.CallID == "" || item.Output == "" {
 				return nil, fmt.Errorf("the Codex Responses turn contains an incomplete function output")

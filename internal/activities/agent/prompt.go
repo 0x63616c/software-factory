@@ -39,7 +39,7 @@ func NewPromptActivities(renderer PromptRenderer, blobStore blobs.Store) (*Promp
 // plus response schema. A seeded implement copies immutable prior items into a
 // new lineage before adding the new feedback prompt.
 func (activities *PromptActivities) Prepare(ctx context.Context, input PrepareInput) (PrepareOutput, error) {
-	prompt, schema, err := activities.prompts.Render(input.Attempt.Key, input.Attempt.Detail, input.Attempt.Prior, input.Attempt.PromptContext, input.Attempt.MaxReviewSteps)
+	prompt, schema, err := activities.prompts.Render(input.Attempt.Key, input.Attempt.Detail, input.Attempt.Prior, input.Attempt.PromptContext)
 	if err != nil {
 		return PrepareOutput{}, invalidInput("render %s prompt: %v", input.Attempt.Key.Stage, err)
 	}

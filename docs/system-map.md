@@ -24,7 +24,7 @@ factory-ticket-<ticket-id> (WorkOnTicket)
         | clean review -> mark PR ready -> exact reviewed-head squash merge
         v
 confirmed merge: Run succeeded, Ticket done
-terminal failure/exhaustion: Run failed or exhausted, Ticket failed
+terminal failure/deadline: Run failed, Ticket failed
 cancellation or abandoned ownership repair: Run canceled, Ticket open
 ```
 
@@ -91,12 +91,17 @@ Ticket state is exactly:
 | `open` | filed and eligible when every blocker is `done` |
 | `active` | owned by the one Run named by `active_run_id` |
 | `done` | terminal Confirmed Merge; satisfies dependencies |
-| `failed` | terminal failure or exhausted budget; a human may move it to `open` |
+| `failed` | terminal failure or semantic deadline; a human may move it to `open` |
 
-Run outcome is exactly `succeeded`, `canceled`, `exhausted`, or `failed`.
+Run outcome is exactly `succeeded`, `canceled`, or `failed`.
 `succeeded` requires immutable `reviewed_head` and `merge_sha` evidence.
-Cancellation returns its Ticket to `open`; failure and exhaustion move it to
-`failed`. A `done` Ticket never reopens.
+Cancellation returns its Ticket to `open`; failure moves it to `failed`. A
+`done` Ticket never reopens.
+
+Historical Runs remain readable without rewriting their evidence. The API may
+therefore return the retired `exhausted` outcome and `agent_attempt_budget` or
+`review_budget` failure kinds for rows created before cumulative limits were
+removed. New workflow executions cannot write those values.
 
 | identity | form |
 |---|---|
@@ -138,12 +143,12 @@ reference in the blob service rather than copied into Temporal history.
 
 The semantic deadline reserves time before the hard execution deadline for
 finalization and cleanup. Agent Attempts and review Steps have independent
-budgets. Terminal errors are classified into stable failure kinds; raw errors
+deadlines. Terminal errors are classified into stable failure kinds; raw errors
 do not drive later business decisions.
 
 A lost Run Worker generation fails its Temporal Session. `WorkOnTicket`
 deletes that generation, provisions the next generation, restores the latest
-durable repository checkpoint, and continues within the original Run budget.
+durable repository checkpoint, and continues within the original Run deadline.
 It never resumes a partial provider conversation. A new Agent Attempt clones
 only a successful prior conversation reference and appends structured
 feedback.
@@ -211,7 +216,7 @@ projection.
 
 ## Human boundaries
 
-A human files and prioritizes Tickets, resolves failed or exhausted work, and
+A human files and prioritizes Tickets, resolves failed work, and
 may return a failed Ticket to `open`. GitHub's ruleset still requires the
 configured Code Owner approval for ordinary actors. The Software Factory App
 may bypass that approval requirement only for pull-request merge, while the

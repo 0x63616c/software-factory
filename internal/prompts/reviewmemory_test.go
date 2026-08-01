@@ -16,26 +16,17 @@ func reviewPrior(ledger ...work.ReviewTurnRecord) work.PriorTurns {
 	return prior
 }
 
-// TestReviewPromptTellsTheTurnItsOwnBudget is the prompt half of the failure
-// on ticket #535: review spent all three of its turns raising one class of
-// stale-comment defect a file at a time, and the third turn — the one whose
-// blocking finding ended the run — had no way to know it was the last.
-func TestReviewPromptTellsTheTurnItsOwnBudget(t *testing.T) {
+func TestReviewPromptNamesItsTurn(t *testing.T) {
 	t.Parallel()
 
-	r := newTestRenderer(t)
-
-	for turn := 1; turn <= work.MaxReviewTurns; turn++ {
-		rendered, err := r.Render(Input{
-			Stage: work.StageReview, Turn: turn, MaxReviewTurns: work.MaxReviewTurns, Ticket: ticket(), Prior: everyDocument(),
-		})
-		if err != nil {
-			t.Fatalf("Render(review turn %d): %v", turn, err)
-		}
-		want := "turn " + strconv.Itoa(turn) + " of " + strconv.Itoa(work.MaxReviewTurns)
-		if !strings.Contains(rendered, want) {
-			t.Errorf("the review prompt for turn %d does not say %q", turn, want)
-		}
+	rendered, err := newTestRenderer(t).Render(Input{
+		Stage: work.StageReview, Turn: 7, Ticket: ticket(), Prior: everyDocument(),
+	})
+	if err != nil {
+		t.Fatalf("Render(review turn 7): %v", err)
+	}
+	if !strings.Contains(rendered, "review turn 7") {
+		t.Errorf("the review prompt does not name its turn:\n%s", rendered)
 	}
 }
 
@@ -47,7 +38,7 @@ func TestReviewPromptTellsTheTurnToSweepTheWholeClass(t *testing.T) {
 	t.Parallel()
 
 	rendered, err := newTestRenderer(t).Render(Input{
-		Stage: work.StageReview, Turn: 1, MaxReviewTurns: work.MaxReviewTurns, Ticket: ticket(), Prior: everyDocument(),
+		Stage: work.StageReview, Turn: 1, Ticket: ticket(), Prior: everyDocument(),
 	})
 	if err != nil {
 		t.Fatalf("Render: %v", err)
@@ -84,7 +75,7 @@ func TestReviewPromptCarriesEveryEarlierTurnNotOnlyTheLast(t *testing.T) {
 	)
 
 	rendered, err := newTestRenderer(t).Render(Input{
-		Stage: work.StageReview, Turn: 3, MaxReviewTurns: work.MaxReviewTurns, Ticket: ticket(), Prior: prior,
+		Stage: work.StageReview, Turn: 3, Ticket: ticket(), Prior: prior,
 	})
 	if err != nil {
 		t.Fatalf("Render: %v", err)
@@ -110,7 +101,7 @@ func TestReviewPromptDeclaresAnEmptyLedgerRatherThanLeavingAGap(t *testing.T) {
 	t.Parallel()
 
 	rendered, err := newTestRenderer(t).Render(Input{
-		Stage: work.StageReview, Turn: 1, MaxReviewTurns: work.MaxReviewTurns, Ticket: ticket(), Prior: everyDocument(),
+		Stage: work.StageReview, Turn: 1, Ticket: ticket(), Prior: everyDocument(),
 	})
 	if err != nil {
 		t.Fatalf("Render: %v", err)
@@ -136,31 +127,21 @@ func TestLedgerProseNamesATurnThatVerifiedNothing(t *testing.T) {
 	}
 }
 
-// TestReviewTurnBudgetIsNotFenced holds the split templateValues/scalarValues
-// exists for. The turn numbers are this system's own, not a prior stage's
-// document, so counting them as documents would demand two fences that no
-// template opens — which is how this was first caught.
-func TestReviewTurnBudgetIsNotFenced(t *testing.T) {
+func TestReviewTurnIsNotFenced(t *testing.T) {
 	t.Parallel()
 
 	in := reviewInput{
 		Implementation: stageOutputOf(work.StageImplement, "the report"),
 		Turn:           2,
-		MaxTurns:       work.MaxReviewTurns,
 	}
 	documents, err := in.templateValues()
 	if err != nil {
 		t.Fatalf("templateValues: %v", err)
 	}
-	for _, name := range []string{"review_turn", "max_review_turns"} {
-		if _, ok := documents[name]; ok {
-			t.Errorf("%q is counted as a fenced document; it belongs in scalarValues", name)
-		}
-		if _, ok := in.scalarValues()[name]; !ok {
-			t.Errorf("%q is missing from scalarValues", name)
-		}
+	if _, ok := documents["review_turn"]; ok {
+		t.Error("review_turn is counted as a fenced document; it belongs in scalarValues")
 	}
-	if got := in.scalarValues()["max_review_turns"]; got != strconv.Itoa(work.MaxReviewTurns) {
-		t.Errorf("max_review_turns = %q, want %d", got, work.MaxReviewTurns)
+	if got := in.scalarValues()["review_turn"]; got != strconv.Itoa(2) {
+		t.Errorf("review_turn = %q, want 2", got)
 	}
 }

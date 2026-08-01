@@ -368,7 +368,7 @@ func TestWorkOnTicketRepairsBlockingReviewWithFreshCandidateAuthorization(t *tes
 	for _, step := range detail.Steps {
 		attempts += len(step.Attempts)
 	}
-	if attempts != 5 || attempts > in.Policy.MaxAgentAttempts {
+	if attempts != 5 {
 		t.Fatalf("cumulative attempts = %d, want five without a loop reset", attempts)
 	}
 }
@@ -1087,55 +1087,48 @@ func TestWorkOnTicketDoesNotReplaceUnclassifiedTerminalChildFailure(t *testing.T
 	t.Fatal("target history did not retain the implement Step")
 }
 
-// A replacement is a new semantic Attempt, not a technical retry. It must
-// spend the Run-wide budget, so exhausting that budget after a recovery stops
-// the next fresh implementer authorization.
-func TestWorkOnTicketCountsUnresumableReplacementAgainstTheRunWideAttemptBudget(t *testing.T) {
+func TestWorkOnTicketContinuesPastFormerAttemptAndReviewCounts(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := storefake.New()
-	ticket, err := s.CreateTicket(ctx, "replacement budget", "do not reset the attempt cap", nil)
+	ticket, err := s.CreateTicket(ctx, "unbounded revisions", "keep working until the deadline or a clean review", nil)
 	if err != nil {
 		t.Fatalf("CreateTicket: %v", err)
 	}
-	policy := work.DefaultTargetRunPolicy()
-	policy.MaxAgentAttempts = 4
-	in := workflows.WorkOnTicketInput{TicketID: ticket.ID, RunID: "019fb901-0000-7000-8000-000000000014", Policy: policy, CloneURL: "https://github.com/example/repository.git", Model: work.Model{Name: "gpt-5", Effort: "high"}}
+	in := workflows.WorkOnTicketInput{TicketID: ticket.ID, RunID: "019fb901-0000-7000-8000-000000000014", Policy: work.DefaultTargetRunPolicy(), CloneURL: "https://github.com/example/repository.git", Model: work.Model{Name: "gpt-5", Effort: "high"}}
 	h := newWorkOnTicketHarness(t, s)
 	firstImplementIdentity := fmt.Sprintf("agent/%s/step/5/attempt/1", in.RunID)
+	reviews := 0
 	h.agentResult = func(input workflows.AgentWorkflowInput) (workflows.AgentWorkflowResult, error) {
 		if input.Identity == firstImplementIdentity {
 			return workflows.AgentWorkflowResult{Failure: &agent.TerminalFailure{Kind: agent.TerminalFailureInvalidProviderOutcome}}, nil
 		}
 		if input.Attempt.Key.Stage == work.StageReview {
-			return targetBlockingReviewWorkflowResult(t, input), nil
+			reviews++
+			if reviews <= 26 {
+				return targetBlockingReviewWorkflowResult(t, input), nil
+			}
 		}
 		return targetAgentWorkflowResult(t, input), nil
 	}
 
 	h.run(in)
-	if err := h.env.GetWorkflowError(); err == nil {
-		t.Fatal("WorkOnTicket succeeded after the replacement consumed the last agent-attempt budget")
+	if err := h.env.GetWorkflowError(); err != nil {
+		t.Fatalf("WorkOnTicket: %v", err)
 	}
 	detail, err := s.TargetRunDetail(ctx, in.RunID)
 	if err != nil {
 		t.Fatalf("TargetRunDetail: %v", err)
 	}
-	total := 0
+	attempts := 0
 	for _, step := range detail.Steps {
-		total += len(step.Attempts)
+		attempts += len(step.Attempts)
 	}
-	if total != policy.MaxAgentAttempts || len(h.agentInputs) != policy.MaxAgentAttempts {
-		t.Fatalf("attempts = durable %d / scheduled %d, want the %d-cap including the replacement", total, len(h.agentInputs), policy.MaxAgentAttempts)
+	if reviews != 27 || attempts <= 25 || len(h.agentInputs) <= 25 {
+		t.Fatalf("reviews=%d durable attempts=%d children=%d, want completion beyond the former 5-review and 25-attempt ceilings", reviews, attempts, len(h.agentInputs))
 	}
-	implements := 0
-	for _, input := range h.agentInputs {
-		if input.Attempt.Key.Stage == work.StageImplement {
-			implements++
-		}
-	}
-	if implements != 2 {
-		t.Fatalf("implement child inputs = %d, want only the failed attempt and explicit replacement", implements)
+	if detail.Run.TargetOutcome != work.RunOutcomeSucceeded {
+		t.Fatalf("Run outcome = %s, want succeeded", detail.Run.TargetOutcome)
 	}
 }
 
@@ -1759,78 +1752,6 @@ func TestWorkOnTicketSemanticDeadlineFailsBeforeStartingAnotherStep(t *testing.T
 		if step.Step.Kind == work.StepReview {
 			t.Fatalf("steps = %+v, want no post-deadline review", detail.Steps)
 		}
-	}
-}
-
-func TestWorkOnTicketStopsBeforeSixthReviewOrTwentySixthAttempt(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s := storefake.New()
-	ticket, err := s.CreateTicket(ctx, "review budget", "find it all", nil)
-	if err != nil {
-		t.Fatalf("CreateTicket: %v", err)
-	}
-	in := workflows.WorkOnTicketInput{TicketID: ticket.ID, RunID: "019fb901-0000-7000-8000-000000000004", Policy: work.DefaultTargetRunPolicy(), CloneURL: "https://github.com/example/repository.git", Model: work.Model{Name: "gpt-5", Effort: "high"}}
-	h := newWorkOnTicketHarness(t, s)
-	h.agentResult = func(input workflows.AgentWorkflowInput) (workflows.AgentWorkflowResult, error) {
-		if input.Attempt.Key.Stage != work.StageReview {
-			return targetAgentWorkflowResult(t, input), nil
-		}
-		return targetBlockingReviewWorkflowResult(t, input), nil
-	}
-	h.run(in)
-	if err := h.env.GetWorkflowError(); err == nil {
-		t.Fatal("review-budget workflow succeeded")
-	}
-	detail, err := s.TargetRunDetail(ctx, in.RunID)
-	if err != nil {
-		t.Fatalf("TargetRunDetail: %v", err)
-	}
-	var reviews, attempts, merges int
-	for _, step := range detail.Steps {
-		if step.Step.Kind == work.StepReview {
-			reviews++
-		}
-		if step.Step.Kind == work.StepMergePullRequest {
-			merges++
-		}
-		attempts += len(step.Attempts)
-	}
-	if reviews != 5 || attempts > in.Policy.MaxAgentAttempts || merges != 0 {
-		t.Fatalf("budget history = %d reviews, %d attempts, %d merges; want five reviews, <=25 attempts, and no merge", reviews, attempts, merges)
-	}
-}
-
-func TestWorkOnTicketStopsBeforeTwentySixthAgentAttempt(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s := storefake.New()
-	ticket, err := s.CreateTicket(ctx, "attempt budget", "repair CI", nil)
-	if err != nil {
-		t.Fatalf("CreateTicket: %v", err)
-	}
-	in := workflows.WorkOnTicketInput{TicketID: ticket.ID, RunID: "019fb901-0000-7000-8000-000000000005", Policy: work.DefaultTargetRunPolicy(), CloneURL: "https://github.com/example/repository.git", Model: work.Model{Name: "gpt-5", Effort: "high"}}
-	h := newWorkOnTicketHarness(t, s)
-	h.awaitCI = func(input activities.TargetAwaitCIInput) (activities.AwaitCIOutput, error) {
-		if err := h.checkpointRepositoryStep(input.Step); err != nil {
-			return activities.AwaitCIOutput{}, err
-		}
-		return activities.AwaitCIOutput{CommitSHA: input.CI.CommitSHA, Green: false, RedFailures: []work.CheckFailure{{Name: "test", Fingerprint: "same", Evidence: "still red"}}}, nil
-	}
-	h.run(in)
-	if err := h.env.GetWorkflowError(); err == nil {
-		t.Fatal("agent-attempt-budget workflow succeeded")
-	}
-	detail, err := s.TargetRunDetail(ctx, in.RunID)
-	if err != nil {
-		t.Fatalf("TargetRunDetail: %v", err)
-	}
-	attempts := 0
-	for _, step := range detail.Steps {
-		attempts += len(step.Attempts)
-	}
-	if attempts != in.Policy.MaxAgentAttempts || len(h.agentInputs) != in.Policy.MaxAgentAttempts {
-		t.Fatalf("agent attempts = %d/%d, want exactly the cap %d and never a twenty-sixth", attempts, len(h.agentInputs), in.Policy.MaxAgentAttempts)
 	}
 }
 
