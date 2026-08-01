@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "name": "head-change-before-merge",
+  "ci": ["success", "success"],
+  "reviews": ["clean", "clean"],
+  "merges": ["head_changed", "confirmed"]
+}

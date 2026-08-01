@@ -31,6 +31,12 @@ integration:
 e2e:
     ./scripts/e2e.sh
 
+scenario ACTION TRACE:
+    ./scripts/scenario.sh "{{ACTION}}" "{{TRACE}}"
+
+scenario-replay TRACE:
+    ./scripts/scenario.sh replay "{{TRACE}}"
+
 release-check VERSION:
     ./scripts/release-check.sh "{{VERSION}}"
 

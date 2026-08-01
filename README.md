@@ -48,12 +48,18 @@ just archive-check
 just verify
 just integration
 just e2e
+just scenario replay internal/e2e/testdata/scenarios/ci-failure-then-revision.json
 ```
 
 `just e2e` starts disposable PostgreSQL and Temporal services, drives a Ticket
 through the real durable `Dispatcher -> WorkOnTicket -> AgentWorkflow` path,
 and writes its machine-checkable result to `.artifacts/e2e/result.json`. It
-requires Docker and `jq`; only the model and GitHub boundaries are faked.
+also runs a deterministic scenario corpus over CI failure, blocking review,
+and changed-head recovery. Each trace fixes fake external outcomes while the
+workflow, Temporal server, Postgres store, and Run Worker lifecycle remain
+real. Re-run any saved trace with `just scenario replay <trace.json>`; a
+failed generated trace is saved under `.artifacts/scenarios/`. It requires
+Docker and `jq`; only the model and GitHub boundaries are faked.
 
 ## Releases
 

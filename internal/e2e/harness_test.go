@@ -49,6 +49,7 @@ type e2eResult struct {
 		ReviewedHeadMatched bool   `json:"reviewedHeadMatched"`
 	} `json:"merge"`
 	ActiveRuns          int    `json:"activeRuns"`
+	RunCount            int    `json:"runCount"`
 	RemainingRunWorkers int    `json:"remainingRunWorkers"`
 	ModelAdapter        string `json:"modelAdapter"`
 	GitHubAdapter       string `json:"githubAdapter"`
@@ -77,6 +78,15 @@ type e2eRuns struct {
 }
 
 func runE2E(t *testing.T) e2eResult {
+	result := runScenario(t, scenarioTrace{
+		Version: 1, Name: "happy-path", CI: []scenarioCIResult{scenarioCISuccess},
+		Reviews: []scenarioReview{scenarioReviewClean}, Merges: []scenarioMerge{scenarioMergeConfirmed},
+	})
+	writeResult(t, result)
+	return result
+}
+
+func runScenario(t *testing.T, trace scenarioTrace) e2eResult {
 	t.Helper()
 	ctx := t.Context()
 	factoryStore := store.New(databasetest.NewPool(t))
@@ -86,8 +96,9 @@ func runE2E(t *testing.T) e2eResult {
 
 	temporal := startTemporal(t)
 	blobStore := blobs.NewMemStore()
-	responses := newFakeResponses(t)
-	runWorkers := newFakeRunWorkers(t, temporal.Client(), factoryStore)
+	script := newFakeScenario(t, trace)
+	responses := newFakeResponses(t, script)
+	runWorkers := newFakeRunWorkers(t, temporal.Client(), factoryStore, script)
 	startFactoryWorkers(t, temporal.Client(), factoryStore, blobStore, responses.client, runWorkers)
 
 	dispatcher, err := temporal.Client().ExecuteWorkflow(ctx, temporalclient.StartWorkflowOptions{
@@ -108,8 +119,21 @@ func runE2E(t *testing.T) e2eResult {
 	ticket = waitForTerminalTicket(t, apiServer.URL, ticket.ID)
 	runs := readRuns(t, apiServer.URL, ticket.ID)
 	waitForRunWorkerCleanup(t, runWorkers)
-	result := resultFrom(ticket, runs, runWorkers.remaining())
-	writeResult(t, result)
+	if err := script.assertExhausted(); err != nil {
+		t.Fatalf("scenario %q did not consume its trace: %v", trace.Name, err)
+	}
+	confirmedHead, err := script.assertInvariants()
+	if err != nil {
+		t.Fatalf("scenario %q violated adapter invariants: %v", trace.Name, err)
+	}
+	storedTicket, err := factoryStore.Ticket(ctx, store.TicketID(ticket.ID))
+	if err != nil {
+		t.Fatalf("read stored Ticket: %v", err)
+	}
+	if storedTicket.ActiveRunID != "" {
+		t.Fatalf("terminal Ticket retains active Run ownership %q", storedTicket.ActiveRunID)
+	}
+	result := resultFrom(ticket, runs, runWorkers.remaining(), confirmedHead)
 	return result
 }
 
@@ -188,19 +212,22 @@ func readRuns(t *testing.T, baseURL string, ticketID int64) e2eRuns {
 	return runs
 }
 
-func resultFrom(ticket e2eTicket, runs e2eRuns, remainingWorkers int) e2eResult {
+func resultFrom(ticket e2eTicket, runs e2eRuns, remainingWorkers int, expectedHead string) e2eResult {
 	result := e2eResult{TicketState: ticket.State, RemainingRunWorkers: remainingWorkers, ModelAdapter: "fake-responses", GitHubAdapter: "fake"}
 	result.Merge.Method = "squash"
+	result.RunCount = len(runs.Runs)
 	if len(runs.Runs) == 0 {
 		return result
 	}
 	run := runs.Runs[0]
 	result.RunOutcome = run.Outcome
-	if run.Active {
-		result.ActiveRuns = 1
+	for _, observed := range runs.Runs {
+		if observed.Active {
+			result.ActiveRuns++
+		}
 	}
 	if run.Merge != nil {
-		result.Merge.ReviewedHeadMatched = run.Merge.ReviewedHead == "candidate-head" && run.Merge.MergeSHA == "merge-head"
+		result.Merge.ReviewedHeadMatched = run.Merge.ReviewedHead == expectedHead && run.Merge.MergeSHA == "merge-head"
 	}
 	for _, step := range run.Steps {
 		for _, attempt := range step.Attempts {
@@ -265,10 +292,29 @@ type fakeResponses struct {
 	turns  atomic.Int32
 }
 
-func newFakeResponses(t *testing.T) *fakeResponses {
+type fakeResponsesRequest struct {
+	Input []fakeResponsesInput `json:"input"`
+	Text  struct {
+		Format struct {
+			Name string `json:"name"`
+		} `json:"format"`
+	} `json:"text"`
+}
+
+type fakeResponsesInput struct {
+	Content []fakeResponsesContent `json:"content"`
+}
+
+type fakeResponsesContent struct {
+	Text string `json:"text"`
+}
+
+const reviewCandidatePrefix = "You are reviewing exactly candidate commit "
+
+func newFakeResponses(t *testing.T, script *fakeScenario) *fakeResponses {
 	t.Helper()
 	fake := &fakeResponses{}
-	server := httptest.NewServer(http.HandlerFunc(fake.serveHTTP))
+	server := httptest.NewServer(fake.serveHTTP(script))
 	t.Cleanup(server.Close)
 	client, err := codexresponses.New(&http.Client{Timeout: 5 * time.Second}, server.URL, fakeCredentialSource{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
@@ -278,44 +324,79 @@ func newFakeResponses(t *testing.T) *fakeResponses {
 	return fake
 }
 
-func (fake *fakeResponses) serveHTTP(writer http.ResponseWriter, request *http.Request) {
-	var input struct {
-		Text struct {
-			Format struct {
-				Name string `json:"name"`
-			} `json:"format"`
-		} `json:"text"`
+func (fake *fakeResponses) serveHTTP(script *fakeScenario) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		var input fakeResponsesRequest
+		if request.Header.Get("Authorization") != "Bearer e2e-token" || json.NewDecoder(request.Body).Decode(&input) != nil {
+			writer.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		outputs := map[string]string{
+			"plan_result":      `{"document":"the plan"}`,
+			"implement_result": `{"report":"implemented","blocked":false,"blocked_reason":"","title":"e2e change","body":"deterministic evidence"}`,
+		}
+		if input.Text.Format.Name == "review_result" {
+			head, err := reviewCandidateHead(input.Input)
+			if err != nil {
+				writer.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if err := script.recordReview(head); err != nil {
+				writer.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			output, err := script.nextReview()
+			if err != nil {
+				writer.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if output == scenarioReviewBlocking {
+				outputs["review_result"] = `{"document":"found a blocking defect","findings":[{"id":"scenario-blocker","blocking":true,"summary":"repair the scenario defect"}],"verified":[]}`
+			} else {
+				outputs["review_result"] = `{"document":"approved","findings":[],"verified":["durable AgentWorkflow path"]}`
+			}
+		}
+		text, ok := outputs[input.Text.Format.Name]
+		if !ok {
+			writer.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		turn := fake.turns.Add(1)
+		encodedText, err := json.Marshal(text)
+		if err != nil {
+			writer.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		writer.Header().Set("Content-Type", "text/event-stream")
+		if _, err := fmt.Fprintf(writer, "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_%d\"}}\n\n", turn); err != nil {
+			return
+		}
+		if _, err := fmt.Fprintf(writer, "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":%s}]}}\n\n", encodedText); err != nil {
+			return
+		}
+		if _, err := fmt.Fprintf(writer, "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_%d\",\"status\":\"completed\",\"usage\":{\"input_tokens\":10,\"output_tokens\":5,\"total_tokens\":15}}}\n\n", turn); err != nil {
+			return
+		}
 	}
-	if request.Header.Get("Authorization") != "Bearer e2e-token" || json.NewDecoder(request.Body).Decode(&input) != nil {
-		writer.WriteHeader(http.StatusBadRequest)
-		return
+}
+
+func reviewCandidateHead(input []fakeResponsesInput) (string, error) {
+	for _, item := range input {
+		for _, content := range item.Content {
+			start := strings.Index(content.Text, reviewCandidatePrefix)
+			if start < 0 {
+				continue
+			}
+			head := content.Text[start+len(reviewCandidatePrefix):]
+			if end := strings.Index(head, "."); end >= 0 {
+				head = head[:end]
+			}
+			if head != "" {
+				return head, nil
+			}
+		}
 	}
-	outputs := map[string]string{
-		"plan_result":      `{"document":"the plan"}`,
-		"implement_result": `{"report":"implemented","blocked":false,"blocked_reason":"","title":"e2e change","body":"deterministic evidence"}`,
-		"review_result":    `{"document":"approved","findings":[],"verified":["durable AgentWorkflow path"]}`,
-	}
-	text, ok := outputs[input.Text.Format.Name]
-	if !ok {
-		writer.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	turn := fake.turns.Add(1)
-	encodedText, err := json.Marshal(text)
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	writer.Header().Set("Content-Type", "text/event-stream")
-	if _, err := fmt.Fprintf(writer, "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_%d\"}}\n\n", turn); err != nil {
-		return
-	}
-	if _, err := fmt.Fprintf(writer, "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":%s}]}}\n\n", encodedText); err != nil {
-		return
-	}
-	if _, err := fmt.Fprintf(writer, "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_%d\",\"status\":\"completed\",\"usage\":{\"input_tokens\":10,\"output_tokens\":5,\"total_tokens\":15}}}\n\n", turn); err != nil {
-		return
-	}
+	return "", fmt.Errorf("review prompt omits candidate head")
 }
 
 func startFactoryWorkers(

@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "name": "happy-path",
+  "ci": ["success"],
+  "reviews": ["clean"],
+  "merges": ["confirmed"]
+}

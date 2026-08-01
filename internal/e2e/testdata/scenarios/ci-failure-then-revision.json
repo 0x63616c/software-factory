@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "name": "ci-failure-then-revision",
+  "ci": ["failure", "success"],
+  "reviews": ["clean"],
+  "merges": ["confirmed"]
+}
