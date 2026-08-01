@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+/bin/
+/coverage.out
+*.test
+/web/node_modules/
+/web/dist/
+/web/storybook-static/
+*.tsbuildinfo
+/.artifacts/

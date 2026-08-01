@@ -1,0 +1,1486 @@
+components:
+  schemas:
+    Attempt:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/Attempt.json
+          format: uri
+          readOnly: true
+          type: string
+        endedAt:
+          description: RFC3339 UTC terminal time; absent while running.
+          format: date-time
+          type: string
+        executionId:
+          description: The opaque identity of the active execution.
+          type: string
+        failureKind:
+          description: The classified terminal failure, when state is failed.
+          type: string
+        result:
+          description: The terminal provider envelope; absent while running.
+        state:
+          description: The execution state this checkpoint proves.
+          enum:
+            - running
+            - succeeded
+            - failed
+          type: string
+        transcript:
+          $ref: "#/components/schemas/Transcript"
+          description: Durable partial or terminal transcript material.
+        usage:
+          $ref: "#/components/schemas/Usage"
+          description: Provider-reported token usage; all fields are zero while usage is unknown.
+        usageState:
+          description: Whether provider usage is available.
+          enum:
+            - unknown
+            - measured
+          type: string
+      required:
+        - state
+        - usageState
+        - usage
+      type: object
+    AttemptOutput:
+      additionalProperties: false
+      properties:
+        agentStage:
+          description: "The agent role for this semantic execution: plan, implement, or review."
+          enum:
+            - plan
+            - implement
+            - review
+          type: string
+        attemptNo:
+          description: Which semantic Agent Attempt of this Step this is, starting at 1. Temporal activity tries are not represented.
+          format: int64
+          type: integer
+        cachedInputTokens:
+          description: The part of inputTokens served from the provider's prompt cache. Null unless usageState is measured.
+          format: int64
+          type:
+            - integer
+            - "null"
+        effort:
+          description: The reasoning effort this attempt ran on.
+          type: string
+        endedAt:
+          description: RFC3339 UTC. Null until the attempt ends.
+          type:
+            - string
+            - "null"
+        executionId:
+          description: The opaque identity captured for this semantic Attempt.
+          type: string
+        failureKind:
+          description: The terminal failure category, empty unless this Attempt failed.
+          enum:
+            - ""
+            - invalid_input
+            - agent_unrecoverable
+            - agent_attempt_budget
+            - review_budget
+            - ci_unobserved
+            - github_auth
+            - github_ruleset
+            - github_unavailable
+            - run_worker_unavailable
+            - persistence_unavailable
+            - infrastructure
+          type: string
+        hasTranscript:
+          description: Whether a transcript is stored for this attempt.
+          type: boolean
+        inputTokens:
+          description: The whole input, including cachedInputTokens. Null unless usageState is measured.
+          format: int64
+          type:
+            - integer
+            - "null"
+        measured:
+          description: Compatibility projection of usageState == measured.
+          type: boolean
+        model:
+          description: The model this attempt ran on.
+          type: string
+        outputTokens:
+          description: The whole output, including reasoningTokens. Null unless usageState is measured.
+          format: int64
+          type:
+            - integer
+            - "null"
+        reasoningTokens:
+          description: The part of outputTokens spent reasoning. Null unless usageState is measured.
+          format: int64
+          type:
+            - integer
+            - "null"
+        result:
+          description: The durable structured result envelope. Null until one is recorded.
+        startedAt:
+          description: RFC3339 UTC.
+          type: string
+        state:
+          description: The durable Attempt lifecycle state.
+          enum:
+            - running
+            - succeeded
+            - failed
+          type: string
+        transcriptPath:
+          description: The download path for this transcript, empty when none is stored.
+          type: string
+        usageState:
+          description: Whether token usage is unknown or measured.
+          enum:
+            - unknown
+            - measured
+          type: string
+      required:
+        - attemptNo
+        - agentStage
+        - model
+        - effort
+        - state
+        - failureKind
+        - executionId
+        - usageState
+        - measured
+        - inputTokens
+        - cachedInputTokens
+        - outputTokens
+        - reasoningTokens
+        - startedAt
+        - endedAt
+        - result
+        - hasTranscript
+        - transcriptPath
+      type: object
+    BuildOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/BuildOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        version:
+          description: The build version running this API.
+          type: string
+      required:
+        - version
+      type: object
+    ConfirmedMergeOutput:
+      additionalProperties: false
+      properties:
+        mergeSha:
+          description: The authoritative merge commit SHA.
+          type: string
+        reviewedHead:
+          description: The exact pull-request head reviewed before merge.
+          type: string
+      required:
+        - reviewedHead
+        - mergeSha
+      type: object
+    ConsoleResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/ConsoleResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        tickets:
+          items:
+            $ref: "#/components/schemas/TicketSummary"
+          type:
+            - array
+            - "null"
+      required:
+        - tickets
+      type: object
+    CreateTicketInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/CreateTicketInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        blockedBy:
+          description: Tickets that must be done before this Ticket is ready.
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
+        body:
+          description: The Ticket's supporting detail.
+          type: string
+        title:
+          description: The concise title describing the Ticket work.
+          minLength: 1
+          type: string
+      required:
+        - title
+        - body
+      type: object
+    ErrorDetail:
+      additionalProperties: false
+      properties:
+        location:
+          description: Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'
+          type: string
+        message:
+          description: Error message text
+          type: string
+        value:
+          description: The value at the given location
+      type: object
+    ErrorModel:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/ErrorModel.json
+          format: uri
+          readOnly: true
+          type: string
+        detail:
+          description: A human-readable explanation specific to this occurrence of the problem.
+          examples:
+            - Property foo is required but is missing.
+          type: string
+        errors:
+          description: Optional list of individual error details
+          items:
+            $ref: "#/components/schemas/ErrorDetail"
+          type:
+            - array
+            - "null"
+        instance:
+          description: A URI reference that identifies the specific occurrence of the problem.
+          examples:
+            - https://example.com/error-log/abc123
+          format: uri
+          type: string
+        reason:
+          description: Stable machine-readable reason for the error.
+          type: string
+        status:
+          description: HTTP status code
+          examples:
+            - 400
+          format: int64
+          type: integer
+        title:
+          description: A short, human-readable summary of the problem type. This value should not change between occurrences of the error.
+          examples:
+            - Bad Request
+          type: string
+        type:
+          default: about:blank
+          description: A URI reference to human-readable documentation for the error.
+          examples:
+            - https://example.com/errors/example
+          format: uri
+          type: string
+      required:
+        - reason
+      type: object
+    MaxInFlightInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/MaxInFlightInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        maxInFlight:
+          description: Maximum number of ticket runs the dispatcher may start at once.
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - maxInFlight
+      type: object
+    Repository:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/Repository.json
+          format: uri
+          readOnly: true
+          type: string
+        branch:
+          description: The Run-owned branch.
+          minLength: 1
+          type: string
+        observedBase:
+          description: The target branch head observed by this Step, when available.
+          type: string
+        pullRequestNodeId:
+          description: The GraphQL pull request node identity, when one exists.
+          type: string
+        pullRequestNumber:
+          description: The pull request number, or zero before one exists.
+          format: int64
+          minimum: 0
+          type: integer
+        pushedHead:
+          description: The latest head accepted by GitHub, when available.
+          type: string
+        stepOrdinal:
+          description: The repository-affine Step ordinal that owns this evidence.
+          format: int64
+          minimum: 1
+          type: integer
+        stepResult:
+          description: The kind-specific durable Step or external-effect result.
+      required:
+        - stepOrdinal
+        - branch
+        - pushedHead
+        - observedBase
+        - pullRequestNumber
+        - pullRequestNodeId
+        - stepResult
+      type: object
+    RepositoryWrite:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/RepositoryWrite.json
+          format: uri
+          readOnly: true
+          type: string
+        branch:
+          description: The Run-owned branch.
+          minLength: 1
+          type: string
+        completedAt:
+          description: RFC3339 UTC time at which the represented operation completed.
+          format: date-time
+          type: string
+        observedBase:
+          description: The target branch head observed by this Step, when available.
+          type: string
+        pullRequestNodeId:
+          description: The GraphQL pull request node identity, when one exists.
+          type: string
+        pullRequestNumber:
+          description: The pull request number, or zero before one exists.
+          format: int64
+          minimum: 0
+          type: integer
+        pushedHead:
+          description: The latest head accepted by GitHub, when available.
+          type: string
+        stepOrdinal:
+          description: The repository-affine Step ordinal that owns this evidence.
+          format: int64
+          minimum: 1
+          type: integer
+        stepResult:
+          description: The kind-specific durable Step or external-effect result.
+      required:
+        - completedAt
+        - stepOrdinal
+        - branch
+        - pushedHead
+        - observedBase
+        - pullRequestNumber
+        - pullRequestNodeId
+        - stepResult
+      type: object
+    RunOutput:
+      additionalProperties: false
+      properties:
+        active:
+          description: Whether this Run is still nonterminal.
+          type: boolean
+        confirmedMerge:
+          $ref: "#/components/schemas/ConfirmedMergeOutput"
+          description: Immutable merge evidence, absent unless this Run ended in a Confirmed Merge.
+        endedAt:
+          description: RFC3339 UTC. Null until the Run ends.
+          type:
+            - string
+            - "null"
+        failureKind:
+          description: The target Run failure category. Empty when not failed.
+          enum:
+            - ""
+            - invalid_input
+            - agent_unrecoverable
+            - agent_attempt_budget
+            - review_budget
+            - ci_unobserved
+            - github_auth
+            - github_ruleset
+            - github_unavailable
+            - run_worker_unavailable
+            - persistence_unavailable
+            - semantic_deadline
+            - infrastructure
+          type: string
+        id:
+          description: Temporal's run id for this Run.
+          type: string
+        outcome:
+          description: The target Run outcome. Empty until terminal.
+          enum:
+            - ""
+            - succeeded
+            - canceled
+            - exhausted
+            - failed
+          type: string
+        phase:
+          description: The latest active Step kind, falling back to the latest terminal Step kind.
+          enum:
+            - ""
+            - create_run_worker
+            - acquire_run_worker_session
+            - clone_repository
+            - plan
+            - implement
+            - sync_pull_request
+            - await_ci
+            - review
+            - mark_pull_request_ready
+            - merge_pull_request
+          type: string
+        startedAt:
+          description: RFC3339 UTC.
+          type: string
+        steps:
+          description: This Run's Steps, in pipeline order.
+          items:
+            $ref: "#/components/schemas/StepOutput"
+          type:
+            - array
+            - "null"
+        ticketId:
+          description: The Ticket this Run belongs to.
+          format: int64
+          type: integer
+        usage:
+          $ref: "#/components/schemas/UsageOutput"
+          description: Rolled up across this Run's Steps.
+      required:
+        - id
+        - ticketId
+        - startedAt
+        - endedAt
+        - outcome
+        - failureKind
+        - active
+        - phase
+        - steps
+        - usage
+      type: object
+    StateTicketInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/StateTicketInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        state:
+          description: The lifecycle state. Active is owned by a target Run.
+          enum:
+            - open
+            - active
+            - done
+            - failed
+          type: string
+      required:
+        - state
+      type: object
+    StepOutput:
+      additionalProperties: false
+      properties:
+        attempts:
+          description: This Step's workflow-authorized semantic Agent Attempts, oldest first. Native Temporal activity tries are absent.
+          items:
+            $ref: "#/components/schemas/AttemptOutput"
+          type:
+            - array
+            - "null"
+        endedAt:
+          description: RFC3339 UTC. Null while its last Attempt is still running.
+          type:
+            - string
+            - "null"
+        iteration:
+          description: The semantic repetition number for this Step kind, when applicable.
+          format: int64
+          type: integer
+        kind:
+          description: The operation this Step records.
+          enum:
+            - create_run_worker
+            - acquire_run_worker_session
+            - clone_repository
+            - plan
+            - implement
+            - sync_pull_request
+            - await_ci
+            - review
+            - mark_pull_request_ready
+            - merge_pull_request
+          type: string
+        ordinal:
+          description: The stable Step identity within this Run, starting at 1.
+          format: int64
+          type: integer
+        reason:
+          description: Why this Step was authorized, when applicable.
+          type: string
+        result:
+          description: The durable structured result envelope. Null until one is recorded.
+        startedAt:
+          description: RFC3339 UTC.
+          type: string
+        state:
+          description: The durable Step lifecycle state.
+          enum:
+            - running
+            - completed
+            - failed
+          type: string
+        usage:
+          $ref: "#/components/schemas/UsageOutput"
+          description: Rolled up across this Step's Attempts.
+      required:
+        - ordinal
+        - kind
+        - iteration
+        - reason
+        - state
+        - startedAt
+        - endedAt
+        - result
+        - attempts
+        - usage
+      type: object
+    TicketResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/TicketResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        blockers:
+          description: Tickets that must be done before this Ticket is ready.
+          items:
+            $ref: "#/components/schemas/TicketSummary"
+          type:
+            - array
+            - "null"
+        blocks:
+          description: Tickets this Ticket prevents from becoming ready.
+          items:
+            $ref: "#/components/schemas/TicketSummary"
+          type:
+            - array
+            - "null"
+        body:
+          description: The Ticket's supporting detail.
+          type: string
+        createdAt:
+          description: The Ticket creation time in RFC3339 UTC.
+          type: string
+        id:
+          description: The Ticket identifier.
+          format: int64
+          type: integer
+        ready:
+          description: Whether this open Ticket has only done dependencies.
+          type: boolean
+        state:
+          description: The Ticket lifecycle state.
+          type: string
+        title:
+          description: The Ticket title.
+          type: string
+        updatedAt:
+          description: The Ticket's latest update time in RFC3339 UTC.
+          type: string
+      required:
+        - id
+        - title
+        - body
+        - state
+        - ready
+        - blockers
+        - blocks
+        - createdAt
+        - updatedAt
+      type: object
+    TicketRunsOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/TicketRunsOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        runs:
+          description: This Ticket's Runs, most recent first.
+          items:
+            $ref: "#/components/schemas/RunOutput"
+          type:
+            - array
+            - "null"
+      required:
+        - runs
+      type: object
+    TicketSummary:
+      additionalProperties: false
+      properties:
+        createdAt:
+          description: The Ticket creation time in RFC3339 UTC.
+          type: string
+        id:
+          description: The Ticket identifier.
+          format: int64
+          type: integer
+        ready:
+          description: Whether this open Ticket has only done dependencies.
+          type: boolean
+        state:
+          description: The Ticket lifecycle state.
+          type: string
+        title:
+          description: The Ticket title.
+          type: string
+        updatedAt:
+          description: The Ticket's latest update time in RFC3339 UTC.
+          type: string
+      required:
+        - id
+        - title
+        - state
+        - ready
+        - createdAt
+        - updatedAt
+      type: object
+    TicketsOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/TicketsOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        tickets:
+          description: Tickets matching the requested filters.
+          items:
+            $ref: "#/components/schemas/TicketSummary"
+          type:
+            - array
+            - "null"
+      required:
+        - tickets
+      type: object
+    Transcript:
+      additionalProperties: false
+      properties:
+        checksum:
+          contentEncoding: base64
+          description: Transcript checksum, base64 encoded on the wire.
+          type: string
+        compressedBytes:
+          contentEncoding: base64
+          description: Compressed transcript bytes, base64 encoded on the wire.
+          type: string
+        compression:
+          description: The transcript compression codec.
+          minLength: 1
+          type: string
+        uncompressedSizeBytes:
+          description: Transcript size before compression.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - compressedBytes
+        - compression
+        - uncompressedSizeBytes
+        - checksum
+      type: object
+    Usage:
+      additionalProperties: false
+      properties:
+        cachedInputTokens:
+          description: Input tokens served from cache.
+          format: int64
+          minimum: 0
+          type: integer
+        inputTokens:
+          description: Whole input tokens, including cached input.
+          format: int64
+          minimum: 0
+          type: integer
+        outputTokens:
+          description: Whole output tokens, including reasoning.
+          format: int64
+          minimum: 0
+          type: integer
+        reasoningTokens:
+          description: Output tokens spent reasoning.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - inputTokens
+        - cachedInputTokens
+        - outputTokens
+        - reasoningTokens
+      type: object
+    UsageOutput:
+      additionalProperties: false
+      properties:
+        cachedInputTokens:
+          description: The part of inputTokens served from the provider's prompt cache.
+          format: int64
+          type: integer
+        complete:
+          description: False when this total omits at least one unmeasured Attempt; render it as incomplete rather than a confident sum.
+          type: boolean
+        inputTokens:
+          description: The whole input, including cachedInputTokens.
+          format: int64
+          type: integer
+        outputTokens:
+          description: The whole output, including reasoningTokens.
+          format: int64
+          type: integer
+        reasoningTokens:
+          description: The part of outputTokens spent reasoning.
+          format: int64
+          type: integer
+      required:
+        - inputTokens
+        - cachedInputTokens
+        - outputTokens
+        - reasoningTokens
+        - complete
+      type: object
+  securitySchemes:
+    agentCheckpointCapability:
+      description: A capability scoped to one active Agent Attempt.
+      in: header
+      name: X-Software-Factory-Checkpoint-Capability
+      type: apiKey
+    cloudflareAccess:
+      description: Cloudflare Access JWT assertion.
+      in: header
+      name: Cf-Access-Jwt-Assertion
+      type: apiKey
+    inClusterBearer:
+      description: Static bearer for in-cluster worker or Run Worker callers.
+      scheme: bearer
+      type: http
+    repositoryCheckpointCapability:
+      description: A capability scoped to one active Run Worker generation.
+      in: header
+      name: X-Software-Factory-Repository-Capability
+      type: apiKey
+info:
+  title: Software Factory API
+  version: development
+openapi: 3.1.0
+paths:
+  /v1/build:
+    get:
+      operationId: get-v1-build
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Get v1 build
+  /v1/console:
+    get:
+      description: Returns the factory Tickets for the console.
+      operationId: get-v1-console
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsoleResponse"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Read console snapshot
+  /v1/factory/max-in-flight:
+    post:
+      description: Success means the target Dispatcher acknowledged the update; the requested policy is current when this returns. Any outstanding dispatch poll is canceled so the policy takes effect immediately.
+      operationId: post-v1-factory-max-in-flight
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaxInFlightInputBody"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Set factory max in flight
+  /v1/factory/pause:
+    post:
+      description: Success means the target Dispatcher acknowledged the update; the requested policy is current when this returns. Any outstanding dispatch poll is canceled so the policy takes effect immediately.
+      operationId: post-v1-factory-pause
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Pause the factory
+  /v1/factory/resume:
+    post:
+      description: Success means the target Dispatcher acknowledged the update; the requested policy is current when this returns. Any outstanding dispatch poll is canceled so the policy takes effect immediately.
+      operationId: post-v1-factory-resume
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Resume the factory
+  /v1/run-worker/runs/{runID}/generations/{generation}/repository-checkpoint:
+    get:
+      description: Reconciles the latest completed Git/PR position using the capability scoped to one Run Worker generation.
+      operationId: get-v1-run-worker-runs-by-run-id-generations-by-generation-repository-checkpoint
+      parameters:
+        - description: The owning Run identity.
+          in: path
+          name: runID
+          required: true
+          schema:
+            description: The owning Run identity.
+            format: uuid
+            type: string
+        - description: The active Run Worker generation.
+          in: path
+          name: generation
+          required: true
+          schema:
+            description: The active Run Worker generation.
+            format: int64
+            minimum: 1
+            type: integer
+        - description: The capability minted for this Run Worker generation.
+          in: header
+          name: X-Software-Factory-Repository-Capability
+          schema:
+            description: The capability minted for this Run Worker generation.
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Repository"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - repositoryCheckpointCapability: []
+      summary: Read a repository checkpoint
+    patch:
+      description: Stores one Run Worker generation's monotonic external-effect result without completing its Store Step; terminal finalization owns that transition.
+      operationId: patch-v1-run-worker-runs-by-run-id-generations-by-generation-repository-checkpoint
+      parameters:
+        - description: The owning Run identity.
+          in: path
+          name: runID
+          required: true
+          schema:
+            description: The owning Run identity.
+            format: uuid
+            type: string
+        - description: The active Run Worker generation.
+          in: path
+          name: generation
+          required: true
+          schema:
+            description: The active Run Worker generation.
+            format: int64
+            minimum: 1
+            type: integer
+        - description: The capability minted for this Run Worker generation.
+          in: header
+          name: X-Software-Factory-Repository-Capability
+          schema:
+            description: The capability minted for this Run Worker generation.
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RepositoryWrite"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Repository"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - repositoryCheckpointCapability: []
+      summary: Checkpoint a deferred repository effect
+    put:
+      description: Atomically stores one Run Worker generation's monotonic Git/PR position and completed Step result.
+      operationId: put-v1-run-worker-runs-by-run-id-generations-by-generation-repository-checkpoint
+      parameters:
+        - description: The owning Run identity.
+          in: path
+          name: runID
+          required: true
+          schema:
+            description: The owning Run identity.
+            format: uuid
+            type: string
+        - description: The active Run Worker generation.
+          in: path
+          name: generation
+          required: true
+          schema:
+            description: The active Run Worker generation.
+            format: int64
+            minimum: 1
+            type: integer
+        - description: The capability minted for this Run Worker generation.
+          in: header
+          name: X-Software-Factory-Repository-Capability
+          schema:
+            description: The capability minted for this Run Worker generation.
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RepositoryWrite"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Repository"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - repositoryCheckpointCapability: []
+      summary: Checkpoint a repository Step
+  /v1/run-worker/runs/{runID}/steps/{stepOrdinal}/attempts/{attemptNo}/checkpoint:
+    get:
+      description: Reconciles execution progress using the capability scoped to the exact Run, Step, and Agent Attempt.
+      operationId: get-v1-run-worker-runs-by-run-id-steps-by-step-ordinal-attempts-by-attempt-no-checkpoint
+      parameters:
+        - description: The owning Run identity.
+          in: path
+          name: runID
+          required: true
+          schema:
+            description: The owning Run identity.
+            format: uuid
+            type: string
+        - description: The active agent-backed Step ordinal.
+          in: path
+          name: stepOrdinal
+          required: true
+          schema:
+            description: The active agent-backed Step ordinal.
+            format: int64
+            minimum: 1
+            type: integer
+        - description: The workflow-authorized Agent Attempt number.
+          in: path
+          name: attemptNo
+          required: true
+          schema:
+            description: The workflow-authorized Agent Attempt number.
+            format: int64
+            minimum: 1
+            type: integer
+        - description: The capability minted for this exact active Agent Attempt.
+          in: header
+          name: X-Software-Factory-Checkpoint-Capability
+          schema:
+            description: The capability minted for this exact active Agent Attempt.
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attempt"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - agentCheckpointCapability: []
+      summary: Read an active Agent Attempt checkpoint
+    put:
+      description: Stores an opaque execution identity or terminal evidence using a capability scoped to the exact Run, Step, and Agent Attempt.
+      operationId: put-v1-run-worker-runs-by-run-id-steps-by-step-ordinal-attempts-by-attempt-no-checkpoint
+      parameters:
+        - description: The owning Run identity.
+          in: path
+          name: runID
+          required: true
+          schema:
+            description: The owning Run identity.
+            format: uuid
+            type: string
+        - description: The active agent-backed Step ordinal.
+          in: path
+          name: stepOrdinal
+          required: true
+          schema:
+            description: The active agent-backed Step ordinal.
+            format: int64
+            minimum: 1
+            type: integer
+        - description: The workflow-authorized Agent Attempt number.
+          in: path
+          name: attemptNo
+          required: true
+          schema:
+            description: The workflow-authorized Agent Attempt number.
+            format: int64
+            minimum: 1
+            type: integer
+        - description: The capability minted for this exact active Agent Attempt.
+          in: header
+          name: X-Software-Factory-Checkpoint-Capability
+          schema:
+            description: The capability minted for this exact active Agent Attempt.
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Attempt"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - agentCheckpointCapability: []
+      summary: Checkpoint an active Agent Attempt
+  /v1/tickets:
+    get:
+      description: Lists Tickets with optional state and derived ready filters.
+      operationId: get-v1-tickets
+      parameters:
+        - description: Limit results to this lifecycle state.
+          explode: false
+          in: query
+          name: state
+          schema:
+            description: Limit results to this lifecycle state.
+            enum:
+              - open
+              - active
+              - done
+              - failed
+            type: string
+        - description: "Limit results by derived readiness: true or false."
+          explode: false
+          in: query
+          name: ready
+          schema:
+            description: "Limit results by derived readiness: true or false."
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketsOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: List Tickets
+    post:
+      description: Files a new open Ticket.
+      operationId: post-v1-tickets
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTicketInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketResponse"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Create a Ticket
+  /v1/tickets/{ticketID}:
+    get:
+      description: Returns the Ticket, both dependency directions, and derived readiness.
+      operationId: get-v1-tickets-by-ticket-id
+      parameters:
+        - description: The Ticket identifier.
+          in: path
+          name: ticketID
+          required: true
+          schema:
+            description: The Ticket identifier.
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketResponse"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Read a Ticket
+  /v1/tickets/{ticketID}/blockers/{blockerTicketID}:
+    delete:
+      description: Removes a dependency edge when it exists.
+      operationId: delete-v1-tickets-by-ticket-id-blockers-by-blocker-ticket-id
+      parameters:
+        - description: The Ticket identifier that is blocked.
+          in: path
+          name: ticketID
+          required: true
+          schema:
+            description: The Ticket identifier that is blocked.
+            format: int64
+            minimum: 1
+            type: integer
+        - description: The Ticket identifier that must be done first.
+          in: path
+          name: blockerTicketID
+          required: true
+          schema:
+            description: The Ticket identifier that must be done first.
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Remove a Ticket blocker
+    put:
+      description: Records that the first Ticket is blocked by the second.
+      operationId: put-v1-tickets-by-ticket-id-blockers-by-blocker-ticket-id
+      parameters:
+        - description: The Ticket identifier that is blocked.
+          in: path
+          name: ticketID
+          required: true
+          schema:
+            description: The Ticket identifier that is blocked.
+            format: int64
+            minimum: 1
+            type: integer
+        - description: The Ticket identifier that must be done first.
+          in: path
+          name: blockerTicketID
+          required: true
+          schema:
+            description: The Ticket identifier that must be done first.
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Add a Ticket blocker
+  /v1/tickets/{ticketID}/cancel:
+    post:
+      description: Success means Temporal accepted cancellation of the ticket workflow. This endpoint does not wait for cleanup or database state to become observable.
+      operationId: post-v1-tickets-by-ticket-id-cancel
+      parameters:
+        - description: The ticket number whose run is being commanded.
+          in: path
+          name: ticketID
+          required: true
+          schema:
+            description: The ticket number whose run is being commanded.
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Cancel a ticket run
+  /v1/tickets/{ticketID}/runs:
+    get:
+      description: Returns every Run of the Ticket, most recent first, each with its Steps and Attempts and rolled-up token usage.
+      operationId: get-v1-tickets-by-ticket-id-runs
+      parameters:
+        - description: The Ticket identifier.
+          in: path
+          name: ticketID
+          required: true
+          schema:
+            description: The Ticket identifier.
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketRunsOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: List a Ticket's Runs
+  /v1/tickets/{ticketID}/runs/{runID}/steps/{ordinal}/attempts/{attemptNo}/transcript:
+    get:
+      description: Returns an ordinal Step Attempt's raw JSONL event stream, decompressed, as a downloadable file.
+      operationId: list-v1-tickets-by-ticket-id-runs-by-run-id-steps-by-ordinal-attempts-by-attempt-no-transcript
+      parameters:
+        - description: The Ticket identifier.
+          in: path
+          name: ticketID
+          required: true
+          schema:
+            description: The Ticket identifier.
+            format: int64
+            minimum: 1
+            type: integer
+        - description: The Run's Temporal run id.
+          in: path
+          name: runID
+          required: true
+          schema:
+            description: The Run's Temporal run id.
+            type: string
+        - description: The target Step's ordinal identity.
+          in: path
+          name: ordinal
+          required: true
+          schema:
+            description: The target Step's ordinal identity.
+            format: int64
+            minimum: 1
+            type: integer
+        - description: Which semantic Agent Attempt to download.
+          in: path
+          name: attemptNo
+          required: true
+          schema:
+            description: Which semantic Agent Attempt to download.
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                contentEncoding: base64
+                type: string
+          description: OK
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+            Content-Type:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Download a target Attempt's transcript
+  /v1/tickets/{ticketID}/state:
+    patch:
+      description: Moves a Ticket through its legal lifecycle transitions.
+      operationId: patch-v1-tickets-by-ticket-id-state
+      parameters:
+        - description: The Ticket identifier.
+          in: path
+          name: ticketID
+          required: true
+          schema:
+            description: The Ticket identifier.
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StateTicketInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketResponse"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Update Ticket state
+  /v1/tickets/{ticketID}/work:
+    post:
+      description: Success means the target Dispatcher acknowledged this Ticket-specific work-now request and scheduled an immediate re-evaluation. Readiness, capacity, and the current admission policy still determine whether the Ticket starts.
+      operationId: post-v1-tickets-by-ticket-id-work
+      parameters:
+        - description: The ticket number whose run is being commanded.
+          in: path
+          name: ticketID
+          required: true
+          schema:
+            description: The ticket number whose run is being commanded.
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Nudge the factory
+security:
+  - cloudflareAccess: []
+  - inClusterBearer: []

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "software-factory plan output",
+  "description": "What the plan stage returns.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["document"],
+  "properties": {
+    "document": {
+      "type": "string",
+      "description": "The stage's whole output, as markdown. Its first line is one sentence summarising the outcome."
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "software-factory implement output",
+  "description": "What the implement stage returns: its report as markdown, whether it finished, and the pull request title/body for the branch as it now stands.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["report", "blocked", "blocked_reason", "title", "body"],
+  "properties": {
+    "report": {
+      "type": "string",
+      "description": "The implementation report, as markdown. Its first line is one sentence summarising the outcome."
+    },
+    "blocked": {
+      "type": "boolean",
+      "description": "True if the stage did not complete the work: blocked, or the plan turned out unimplementable."
+    },
+    "blocked_reason": {
+      "type": "string",
+      "description": "Why, when blocked is true. Empty string when blocked is false."
+    },
+    "title": {
+      "type": "string",
+      "description": "The pull request title for the branch as it now stands. Empty when blocked is true and nothing was pushed worth describing."
+    },
+    "body": {
+      "type": "string",
+      "description": "The pull request body for the branch as it now stands, using the repository's pull request template. Empty when blocked is true and nothing was pushed worth describing."
+    }
+  }
+}

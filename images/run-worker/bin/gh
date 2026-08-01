@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+credential_dir="${RUN_WORKER_GITHUB_CREDENTIAL_DIR:-/var/run/secrets/software-factory/github}"
+real_gh="${GH_REAL:-/usr/local/libexec/gh-real}"
+
+# Read immediately before exec. GH_TOKEN exists only in this short-lived gh
+# process, never in the long-lived Run Worker process environment.
+GH_TOKEN="$(cat "$credential_dir/token")"
+[ -n "$GH_TOKEN" ]
+export GH_TOKEN
+exec "$real_gh" "$@"

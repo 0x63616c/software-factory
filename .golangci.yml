@@ -1,0 +1,224 @@
+# Mechanical enforcement for the active standalone module. This file IS the wall.
+#
+# SCOPE: this directory only. Go tooling is directory-rooted, so this config governs
+# exactly this module. Go ignores the preserved `_archived/` tree by convention.
+#
+# Adapted from the software-factory repo's .golangci.yml. Their TUI and SQL boundaries are
+# gone; workflow-determinism and SDK-sealing rules are ours. See docs/style-adoption.md.
+#
+# If a rule fires, the fix is the CODE, not this config (SoftwareStyle tenet 2).
+#
+# golangci-lint v2 schema.
+version: "2"
+
+linters:
+  # `enable` ADDS to golangci-lint's default set (errcheck, govet, ineffassign,
+  # staticcheck, unused), it does not replace it — there is no `default: none`
+  # here deliberately. The wall is therefore wider than this list reads;
+  # staticcheck in particular fires on code none of the rules below mention.
+  enable:
+    - depguard        # architectural import boundaries (workflow purity, SDK sealing)
+    - forbidigo       # banned calls (os.Getenv, time.Now, nondeterminism in workflows)
+    - errcheck        # no ignored errors (tenet 2)
+    - exhaustive      # enum switches must be complete (stage, breaker state)
+    - errorlint       # correct error wrapping and comparison
+    - nolintlint      # //nolint must be specific and explained
+    - bodyclose       # response bodies closed
+    - containedctx    # no context stored in structs
+    - contextcheck    # context propagated correctly
+    - fatcontext      # no context in loops / nested-context misuse
+    - revive          # style and legibility net
+    - gocritic        # correctness and legibility diagnostics
+    - godot           # comments end in a period
+    - misspell
+    - unconvert
+    - wastedassign
+
+  settings:
+    depguard:
+      rules:
+        # SoftwareStyle tenet 10: workflows are deterministic. Workflow code orchestrates
+        # and does nothing else — no I/O, no SDK clients, no ambient randomness. A
+        # violation here does not fail the build at runtime; it corrupts a replay days
+        # later. This rule is the only thing that catches it early.
+        #
+        # It catches an *import*, which is why a package that hides nondeterminism behind
+        # an interface has to be named here explicitly. `internal/prompts` mints a fence
+        # nonce from an injected io.Reader: a workflow calling Render imports no banned
+        # package and reads as pure orchestration at the call site, so nothing but this
+        # entry would stop it. Any future package taking entropy, a clock or a client as
+        # a constructor argument belongs on this list for the same reason.
+        workflows-are-deterministic:
+          files:
+            - "**/internal/workflows/**"
+          deny:
+            - pkg: net/http
+              desc: "workflow code performs no I/O — move it to an activity (SoftwareStyle: workflows are deterministic)"
+            - pkg: os
+              desc: "workflow code touches no filesystem or environment — move it to an activity"
+            - pkg: database/sql
+              desc: "workflow code performs no I/O — move it to an activity"
+            - pkg: crypto/rand
+              desc: "nondeterministic — use workflow.SideEffect"
+            - pkg: math/rand
+              desc: "nondeterministic — use workflow.SideEffect"
+            - pkg: math/rand/v2
+              desc: "nondeterministic — use workflow.SideEffect"
+            - pkg: k8s.io/client-go
+              desc: "workflow code calls no clients — invoke an activity instead"
+            - pkg: github.com/google/go-github
+              desc: "workflow code calls no clients — invoke an activity instead"
+            - pkg: github.com/0x63616c/software-factory/internal/clients
+              desc: "workflow code calls no clients — invoke an activity instead (SoftwareStyle: workflows are deterministic)"
+            - pkg: github.com/0x63616c/software-factory/internal/prompts
+              desc: "rendering a prompt mints a fence nonce from an injected entropy source — nondeterministic despite importing nothing banned, so render in an activity"
+
+        # Tenet 4: no leaky abstractions. Each SDK stays sealed in its own client package;
+        # the rest of the codebase sees domain types.
+        clients-seal-their-sdks:
+          files:
+            - "**/internal/**"
+            - "!**/internal/clients/k8s/**"
+          # Two whole-domain prefixes, NOT a list of specific modules. depguard
+          # resolves each import against its best-matching deny entry, so a
+          # narrower `k8s.io/client-go` entry alongside `k8s.io` silently stops
+          # the broad one applying to everything else — verified by probe.
+          # Sealing only client-go, api and apimachinery left k8s.io/streaming,
+          # k8s.io/utils, k8s.io/klog and every sigs.k8s.io type importable from
+          # anywhere under internal/, which is most of the worldview the seal
+          # exists to keep out. Pod specs pull metav1/corev1 in, which is what
+          # makes this the rule the pod client was written against.
+          deny:
+            - pkg: k8s.io
+              desc: "the whole Kubernetes worldview is sealed in internal/clients/k8s (SoftwareStyle: no leaky abstractions)"
+            - pkg: sigs.k8s.io
+              desc: "Kubernetes ecosystem types are sealed in internal/clients/k8s"
+
+        github-sdk-is-sealed:
+          files:
+            - "**/internal/**"
+            - "!**/internal/clients/github/**"
+          deny:
+            - pkg: github.com/google/go-github
+              desc: "GitHub SDK types are sealed in internal/clients/github (SoftwareStyle: no leaky abstractions)"
+
+        # Temporal client construction and SDK types have one boundary. A dial site that
+        # misses the payload converter can write histories its own worker cannot decode,
+        # so this must be a wall rather than a convention reviewers have to remember.
+        temporal-client-is-sealed:
+          files:
+            - "**/*.go"
+            - "!**/internal/clients/temporal/**"
+          deny:
+            - pkg: go.temporal.io/sdk/client
+              desc: "Temporal client construction and SDK types are sealed in internal/clients/temporal"
+
+        # storedb holds exactly what sqlc generates: pgx-flavoured row types and
+        # the SQL. internal/store wraps storedb into the store's own domain
+        # types (Ticket, Run, Attempt, ...), so it alone may import storedb.
+        # This does not seal pgx itself — internal/database and cmd/api
+        # already reference the pgx driver directly to open a connection and
+        # run goose migrations, a pre-existing and orthogonal concern this
+        # ticket does not touch — only the sqlc-generated rows that store's
+        # queries produce.
+        store-generated-rows-are-sealed:
+          files:
+            - "**/internal/**"
+            - "!**/internal/store/**"
+          deny:
+            - pkg: github.com/0x63616c/software-factory/internal/store/storedb
+              desc: "sqlc-generated rows are sealed in internal/store, which wraps them into domain types (SoftwareStyle: no leaky abstractions)"
+
+        # Testability floor: randomness is a nondeterministic edge. Only the composition
+        # root constructs a real source.
+        entropy-is-injected:
+          files:
+            - "**/*.go"
+            - "!**/cmd/**"
+            - "!**/*_test.go"
+          deny:
+            - pkg: crypto/rand
+              desc: "randomness is injected — construct it only at the composition root, cmd/ (SoftwareStyle: testability floor)"
+            - pkg: math/rand
+              desc: "use injected entropy, not ambient math/rand"
+            - pkg: math/rand/v2
+              desc: "use injected entropy, not ambient math/rand/v2"
+
+    forbidigo:
+      analyze-types: true
+      forbid:
+        # Single source of truth: config is read in exactly one place.
+        - pattern: '^os\.Getenv$'
+          msg: "read config only via internal/config — os.Getenv is banned elsewhere (SoftwareStyle: single source of truth)"
+        - pattern: '^os\.LookupEnv$'
+          msg: "read config only via internal/config — os.LookupEnv is banned elsewhere"
+        # Testability floor: wall-clock time is an external edge, sealed in internal/clock.
+        # In workflow code the answer is workflow.Now, not the clock either.
+        - pattern: '^time\.Now$'
+          msg: "read time via the injected clock.Clock, or workflow.Now inside a workflow — time.Now is banned outside internal/clock (SoftwareStyle: testability floor)"
+        - pattern: '^time\.Local$'
+          msg: "this service is UTC-only (SoftwareStyle: time and units)"
+        # Workflow determinism: real sleeps do not survive replay.
+        - pattern: '^time\.Sleep$'
+          msg: "use workflow.Sleep inside a workflow, or an injected clock/timer elsewhere — real sleeps break replay and stall tests"
+        # Observability is a platform feature: log through the injected slog logger so
+        # output stays structured and correlated. Loki consumes JSON, not fmt.Println.
+        - pattern: '^fmt\.Print(ln|f)?$'
+          msg: "use the injected slog logger — stdout must stay structured JSON for Loki (SoftwareStyle: observability is a platform feature)"
+
+    exhaustive:
+      # A `default:` case does NOT excuse missing enum cases.
+      default-signifies-exhaustive: false
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: unexported-return
+        - name: context-as-argument
+        - name: error-return
+        - name: error-naming
+
+  exclusions:
+    rules:
+      # Config is read in exactly one place.
+      - path: 'internal/config/'
+        linters: [forbidigo]
+      # time.Now is legal in exactly one place. Scope the exemption to that ONE diagnostic
+      # so the other one-door rules still apply inside clock.
+      - path: 'internal/clock/'
+        text: 'read time via the injected clock'
+        linters: [forbidigo]
+      # The composition root and tests may print to stdout; no structured pipeline is
+      # consuming them there.
+      - path: 'cmd/'
+        text: 'use the injected slog logger'
+        linters: [forbidigo]
+      - path: '_test\.go'
+        text: 'use the injected slog logger'
+        linters: [forbidigo]
+      - path: '_test\.go'
+        text: 'real sleeps break replay'
+        linters: [forbidigo]
+      # containedctx/contextcheck/fatcontext reason about context.Context. Workflow code
+      # threads workflow.Context, a different type with the same discipline — Temporal's
+      # own contract governs there, and these heuristics can misfire on it.
+      - path: 'internal/workflows/'
+        linters: [containedctx, contextcheck, fatcontext]
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+
+# NOTE (tenet 2, no escape hatches): golangci-lint cannot hard-ban a well-formed //nolint.
+# nolintlint above is defence-in-depth; a grep in lefthook is the hard ban.
+#
+# NOT mechanically enforced, so review-tier: naked `go` statements inside workflow code
+# (use workflow.Go), narrow-door and no-leaky judgment calls, parse-don't-validate,
+# comment and test-name quality.

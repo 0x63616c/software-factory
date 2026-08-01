@@ -1,0 +1,42 @@
+// Probe for the workflows-are-deterministic depguard rule.
+//
+// This file is NOT in the build graph — testdata/ is invisible to the Go tool,
+// and the .txt suffix keeps it invisible to golangci-lint too. That is
+// deliberate: a package whose only purpose is to fail lint would itself need a
+// lint exclusion, which is the same hole one layer down that
+// determinism_test.go exists to close.
+//
+// It is here because determinism_test.go asserts the TEXT of the rule, and the
+// only way to check the EFFECT is to run the linter against workflow code that
+// calls Render. Reconstructing this file is otherwise a research task for
+// whoever next has to verify that the rule fires — it was one for the reviewer
+// of #370.
+//
+// To check the effect, from the software-factory repository root:
+//
+//	mkdir -p internal/workflows
+//	cp internal/prompts/testdata/workflow_probe.go.txt internal/workflows/probe.go
+//	golangci-lint run ./internal/workflows/... 2>&1 | grep -c workflows-are-deterministic   # want 1
+//	rm -rf internal/workflows
+//
+// The last line matters: leaving the probe behind makes every later lint run
+// fail, and committing it is the exclusion problem above.
+//
+// It is the invisible case on purpose. It imports nothing on any deny list
+// except internal/prompts, takes an injected renderer, and reads as pure
+// orchestration — no time.Now, no rand, no I/O. Nothing but depguard can see
+// that Render mints a fresh nonce and therefore returns different bytes on a
+// Temporal replay than it did on the original execution.
+
+package workflows
+
+import (
+	"github.com/0x63616c/software-factory/internal/prompts"
+	"github.com/0x63616c/software-factory/internal/work"
+)
+
+// RenderInWorkflow is what a workflow author would plausibly write, and what
+// must never lint clean.
+func RenderInWorkflow(renderer *prompts.Renderer, ticket work.TicketDetail) (string, error) {
+	return renderer.Render(prompts.Input{Stage: work.StagePlan, Ticket: ticket})
+}
