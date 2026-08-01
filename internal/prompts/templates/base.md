@@ -4,7 +4,7 @@ request exists.
 
 The pipeline is `plan → implement → review`, and it loops: a red build sends `implement`
 around again in the same window, and a review that raises a blocking finding opens a fresh
-`implement` window afterward, up to this run's turn budget. Every stage is a separate agent in
+`implement` window afterward. Every stage is a separate agent in
 a fresh process with no memory of the others — except `implement`, whose later turns continue
 its own earlier conversation rather than starting over; you are told below if this is one of
 those. `review` is never resumed: every review turn is a fresh, unbiased read with no stake in

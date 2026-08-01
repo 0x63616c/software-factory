@@ -60,25 +60,7 @@ const (
 	ToolsetCodingWriteV1 ToolsetID = "coding-write-v1"
 )
 
-// Limits fixes one agent run's resource budgets at child-workflow start.
-type Limits struct {
-	MaxModelTurns        int   `json:"max_model_turns"`
-	MaxToolCalls         int   `json:"max_tool_calls"`
-	MaxInputTokens       int64 `json:"max_input_tokens"`
-	MaxOutputTokens      int64 `json:"max_output_tokens"`
-	MaxConversationBytes int64 `json:"max_conversation_bytes"`
-	ContinueAsNewAfter   int   `json:"continue_as_new_after"`
-}
-
-// DefaultLimits returns the fixed V1 operational and spend bounds for one stage agent.
-func DefaultLimits() Limits {
-	return Limits{
-		MaxModelTurns: 24, MaxToolCalls: 96, MaxInputTokens: 500_000, MaxOutputTokens: 100_000,
-		MaxConversationBytes: 1 << 20, ContinueAsNewAfter: 8,
-	}
-}
-
-// ModelTurnInput routes one provider turn using only bounded metadata and a conversation reference.
+// ModelTurnInput routes one provider turn using only reference metadata.
 type ModelTurnInput struct {
 	Model              work.Model        `json:"model"`
 	ToolsetID          ToolsetID         `json:"toolset_id"`

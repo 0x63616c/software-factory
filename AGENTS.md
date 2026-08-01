@@ -18,10 +18,10 @@
 A Go Temporal worker that autonomously works Tickets from its own Postgres (ADR-0012).
 The stable `Dispatcher` admits dependency-ready `open` Tickets to one `WorkOnTicket`
 workflow each. `WorkOnTicket` owns plan, implement, required CI, independent review,
-bounded revision, and exact-reviewed-head squash merge. `MaintainFactory` periodically
+deadline-bounded revision, and exact-reviewed-head squash merge. `MaintainFactory` periodically
 repairs orphaned Run ownership and Run Worker generations. A confirmed merge records the
 Run as `succeeded` and the Ticket as `done`; cancellation returns the Ticket to `open`;
-terminal failure or exhausted budget records `failed` or `exhausted` and moves the Ticket
+terminal failure records `failed` and moves the Ticket
 to `failed`.
 
 Direct model calls run on the main worker. Each disposable per-Run pod has a credentialed

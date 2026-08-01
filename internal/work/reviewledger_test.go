@@ -5,20 +5,6 @@ import (
 	"testing"
 )
 
-// TestMaxStageInvocationsIsStillNineteen pins the derived total. The
-// derivation moved into an expression over the two turn ceilings, so nothing
-// stops a ceiling change from widening the run budget silently; this is what
-// makes that change visible. Editing this number is fine — editing it without
-// noticing is what it exists to prevent.
-func TestMaxStageInvocationsIsStillNineteen(t *testing.T) {
-	t.Parallel()
-
-	if MaxStageInvocations != 19 {
-		t.Errorf("MaxStageInvocations = %d, want 19 (1 plan + %d implement + %d review)",
-			MaxStageInvocations, MaxImplementTurnsPerWindow*MaxReviewTurns, MaxReviewTurns)
-	}
-}
-
 // TestPriorTurnsCarriesTheReviewLedgerAcrossTheActivityBoundary is the whole
 // point of the ledger: it travels in an activity input, which Temporal
 // serializes, so a ledger that did not survive a round trip would be empty by

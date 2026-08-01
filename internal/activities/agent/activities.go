@@ -54,9 +54,6 @@ func (activities *Activities) RecordLifecycle(_ context.Context, input Lifecycle
 	default:
 		return invalidInput("unsupported agent child outcome %q", input.Outcome)
 	}
-	if input.Budget != "" {
-		activities.metrics.AgentBudgetExhausted(input.Budget)
-	}
 	activities.metrics.AgentChildFinished(input.Outcome)
 	return nil
 }

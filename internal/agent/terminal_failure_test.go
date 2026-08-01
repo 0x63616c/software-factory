@@ -11,11 +11,10 @@ func TestTerminalFailureValidate(t *testing.T) {
 		valid   bool
 	}{
 		{name: "session lost", failure: TerminalFailure{Kind: TerminalFailureSessionLost}, valid: true},
-		{name: "budget", failure: TerminalFailure{Kind: TerminalFailureBudgetExhausted, Budget: BudgetToolCalls}, valid: true},
+		{name: "legacy budget replay", failure: TerminalFailure{Kind: TerminalFailureKind("budget_exhausted"), Budget: "tool_calls"}, valid: true},
 		{name: "unknown kind", failure: TerminalFailure{Kind: "unknown"}},
-		{name: "budget missing its name", failure: TerminalFailure{Kind: TerminalFailureBudgetExhausted}},
-		{name: "budget with an unknown name", failure: TerminalFailure{Kind: TerminalFailureBudgetExhausted, Budget: "unknown"}},
-		{name: "non budget with a budget", failure: TerminalFailure{Kind: TerminalFailureSessionLost, Budget: BudgetToolCalls}},
+		{name: "legacy budget missing its recorded name", failure: TerminalFailure{Kind: TerminalFailureKind("budget_exhausted")}},
+		{name: "non budget with a budget", failure: TerminalFailure{Kind: TerminalFailureSessionLost, Budget: "tool_calls"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

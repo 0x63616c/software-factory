@@ -554,7 +554,7 @@ func (f *Store) FinalizeRunFailure(_ context.Context, in store.RunFailureInput) 
 	if ticket.State != store.TicketActive || ticket.ActiveRunID != in.RunID {
 		return store.TerminalResult{}, fmt.Errorf("failure: %w", store.ErrRunOwnership)
 	}
-	if in.Outcome != work.RunOutcomeFailed && in.Outcome != work.RunOutcomeExhausted {
+	if in.Outcome != work.RunOutcomeFailed {
 		return store.TerminalResult{}, fmt.Errorf("failure: %w", work.ErrPermanent)
 	}
 	if in.StepOrdinal > 0 {

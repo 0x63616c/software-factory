@@ -40,7 +40,7 @@ type attemptOutput struct {
 	Model             string          `json:"model" doc:"The model this attempt ran on."`
 	Effort            string          `json:"effort" doc:"The reasoning effort this attempt ran on."`
 	State             string          `json:"state" enum:"running,succeeded,failed" doc:"The durable Attempt lifecycle state."`
-	FailureKind       string          `json:"failureKind" enum:",invalid_input,agent_unrecoverable,agent_attempt_budget,review_budget,ci_unobserved,github_auth,github_ruleset,github_unavailable,run_worker_unavailable,persistence_unavailable,infrastructure" doc:"The terminal failure category, empty unless this Attempt failed."`
+	FailureKind       string          `json:"failureKind" enum:",invalid_input,agent_unrecoverable,agent_attempt_budget,review_budget,ci_unobserved,github_auth,github_ruleset,github_unavailable,run_worker_unavailable,persistence_unavailable,infrastructure" doc:"The terminal failure category, including retained historical values; empty unless this Attempt failed."`
 	ExecutionID       string          `json:"executionId" doc:"The opaque identity captured for this semantic Attempt."`
 	UsageState        string          `json:"usageState" enum:"unknown,measured" doc:"Whether token usage is unknown or measured."`
 	Measured          bool            `json:"measured" doc:"Compatibility projection of usageState == measured."`
@@ -80,8 +80,8 @@ type runOutput struct {
 	TicketID       int64                 `json:"ticketId" doc:"The Ticket this Run belongs to."`
 	StartedAt      string                `json:"startedAt" doc:"RFC3339 UTC."`
 	EndedAt        *string               `json:"endedAt" doc:"RFC3339 UTC. Null until the Run ends."`
-	Outcome        string                `json:"outcome" enum:",succeeded,canceled,exhausted,failed" doc:"The target Run outcome. Empty until terminal."`
-	FailureKind    string                `json:"failureKind" enum:",invalid_input,agent_unrecoverable,agent_attempt_budget,review_budget,ci_unobserved,github_auth,github_ruleset,github_unavailable,run_worker_unavailable,persistence_unavailable,semantic_deadline,infrastructure" doc:"The target Run failure category. Empty when not failed."`
+	Outcome        string                `json:"outcome" enum:",succeeded,canceled,exhausted,failed" doc:"The target Run outcome, including retained historical exhausted Runs. Empty until terminal."`
+	FailureKind    string                `json:"failureKind" enum:",invalid_input,agent_unrecoverable,agent_attempt_budget,review_budget,ci_unobserved,github_auth,github_ruleset,github_unavailable,run_worker_unavailable,persistence_unavailable,semantic_deadline,infrastructure" doc:"The target Run failure category, including retained historical budget values. Empty when not failed."`
 	Active         bool                  `json:"active" doc:"Whether this Run is still nonterminal."`
 	Phase          string                `json:"phase" enum:",create_run_worker,acquire_run_worker_session,clone_repository,plan,implement,sync_pull_request,await_ci,review,mark_pull_request_ready,merge_pull_request" doc:"The latest active Step kind, falling back to the latest terminal Step kind."`
 	ConfirmedMerge *confirmedMergeOutput `json:"confirmedMerge,omitempty" doc:"Immutable merge evidence, absent unless this Run ended in a Confirmed Merge."`

@@ -72,10 +72,6 @@ const (
 	ErrTypePredecessorMergeFenced = "predecessor_merge_fenced"
 	// ErrTypeRunWorkerSessionLost identifies a lost generation-affine tool session.
 	ErrTypeRunWorkerSessionLost = "run_worker_session_lost"
-	// ErrTypeAgentAttemptBudget is the target run's semantic agent budget.
-	ErrTypeAgentAttemptBudget = "agent_attempt_budget"
-	// ErrTypeReviewBudget is the target run's semantic review budget.
-	ErrTypeReviewBudget = "review_budget"
 	// ErrTypeCIUnobserved identifies an exhausted exact-head CI observation window.
 	ErrTypeCIUnobserved = "ci_unobserved"
 	// ErrTypeHardDeadline is the target run's absolute execution ceiling.

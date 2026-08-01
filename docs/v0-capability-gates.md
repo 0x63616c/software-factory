@@ -61,7 +61,7 @@ last successful implement `AgentWorkflow` conversation into a new
 attempt-owned identity and appends fresh structured feedback. The main worker
 persists terminal result, usage, and bounded transcript evidence before the
 containing Step completes. A Run Worker loss is classified by the child
-workflow, then recovered or retried under the Run's immutable budget; it never
+workflow, then recovered or retried before the Run's immutable deadline; it never
 reuses a provider thread or a partial failed conversation.
 
 The one-off resume harness was deleted with the CLI runtime. The observations
@@ -100,7 +100,7 @@ process ID.
 It proves Temporal's filesystem/routing capabilities and failure boundary only.
 Domain tests for the activated `WorkOnTicket` runtime separately prove Agent
 Attempt closure, checkpoint restoration, generation replacement, and preservation
-of the original Run budget. Resumed Codex execution is intentionally absent.
+before the original Run deadline. Resumed Codex execution is intentionally absent.
 
 ## Target dispatcher replay fixture
 
@@ -126,6 +126,6 @@ go test -tags=manual -run '^TestExportTargetDispatcherHistory$' \
 
 Migration 11 removed the legacy lifecycle vocabulary and renamed the opaque
 execution field to `agent_execution_id`. Ticket state is exactly `open`, `active`,
-`done`, or `failed`. Run outcome is exactly `succeeded`, `canceled`, `exhausted`,
-or `failed`. There are no deployed `working` or `review` Ticket states, provider
+`done`, or `failed`. Run outcome is exactly `succeeded`, `canceled`, or `failed`.
+There are no deployed `working` or `review` Ticket states, provider
 thread fields, legacy Run projections, or webhook-owned lifecycle transitions.

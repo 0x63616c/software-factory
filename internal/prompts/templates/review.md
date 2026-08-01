@@ -49,17 +49,9 @@ cheap and you are the only stage that will run it.
 A finding that names two files where a search would have found six is a defective finding, and
 it costs the run more than a missed defect would. The next `implement` turn fixes the two you
 named; the turn after that raises the remaining four under a fresh id; and the run spends its
-whole review budget discovering one class of defect a file at a time, terminating exhausted
-with the work almost done. That is not hypothetical — it is what happened on the run this
-instruction was added because of.
+run discovering one class of defect a file at a time. Sweep for the whole class now.
 
-### You are on turn {{review_turn}} of {{max_review_turns}}
-
-Review gets {{max_review_turns}} turns in a run and the counter never resets. On the last one,
-a blocking finding ends the run: there is no further `implement` turn, so the branch is
-abandoned as it stands rather than fixed. Weigh that. It does not lower the bar for what
-blocks — shipping something incorrect is still worse than stopping — but it does mean the last
-turn is the wrong place to discover a class of defect you could have swept for on the first.
+### You are on review turn {{review_turn}}
 
 ### Findings carry an id, and it has to survive across turns
 
@@ -105,7 +97,7 @@ Read the "checked and would keep" lines as an earlier turn's verdict, not as a r
 bound by — a part cleared on turn 1 can still be wrong, and the change under review has moved
 since. But if you are about to raise a finding against something an earlier turn cleared, say
 in the finding why that verdict no longer holds. Three turns reaching three different verdicts
-on one file, each without acknowledging the last, is how a run exhausts its budget.
+on one file, each without acknowledging the last, wastes another review cycle.
 
 <untrusted-prior-document-{{fence_nonce}}>
 {{review_ledger}}

@@ -127,11 +127,6 @@ type reviewInput struct {
 	// Turn is which review turn this is, 1-indexed.
 	Turn int
 
-	// MaxTurns is the immutable budget passed by the workflow that owns this
-	// review loop. Target runs are intentionally independent of the legacy
-	// pipeline's work.MaxReviewTurns constant.
-	MaxTurns int
-
 	CandidateHeadSHA string
 }
 
@@ -146,12 +141,11 @@ func (in reviewInput) templateValues() (map[string]string, error) {
 	}, nil
 }
 
-// scalarValues renders review's turn budget. Both are this system's own
-// numbers, never a document, so neither is fenced.
+// scalarValues renders review's turn and candidate identity. Both are this
+// system's own values, never documents, so neither is fenced.
 func (in reviewInput) scalarValues() map[string]string {
 	return map[string]string{
 		"review_turn":        strconv.Itoa(in.Turn),
-		"max_review_turns":   strconv.Itoa(in.MaxTurns),
 		"candidate_head_sha": in.CandidateHeadSHA,
 	}
 }
@@ -200,8 +194,7 @@ func feedbackProse(context work.AgentPromptContext) string {
 // two sections answer different questions — "what must you keep the id of"
 // versus "what has this run's review already covered" — and a ledger with its
 // most recent entry silently missing would be the more confusing shape to
-// read. Both are bounded by the immutable review budget the owning workflow
-// passes to this render; target runs pass TargetRunPolicy.MaxReviewSteps.
+// read. The Run deadline bounds how long this ledger can grow.
 func ledgerProse(ledger []work.ReviewTurnRecord) string {
 	if len(ledger) == 0 {
 		return "(No earlier review turns this run: this is review's first turn.)"
@@ -267,7 +260,7 @@ func findingsProse(out work.StageOutput) string {
 // turn is that stage's own 1-indexed turn number; only review reads it.
 //
 // Exhaustive, no default — matches stageTemplate.
-func buildStageInput(stage work.Stage, turn int, maxReviewTurns int, prior work.PriorTurns, promptContext work.AgentPromptContext) (stageInput, error) {
+func buildStageInput(stage work.Stage, turn int, prior work.PriorTurns, promptContext work.AgentPromptContext) (stageInput, error) {
 	switch stage {
 	case work.StagePlan:
 		return planInput{}, nil
@@ -284,7 +277,6 @@ func buildStageInput(stage work.Stage, turn int, maxReviewTurns int, prior work.
 			PreviousReview:   prior.LatestReview,
 			Ledger:           prior.ReviewLedger,
 			Turn:             turn,
-			MaxTurns:         maxReviewTurns,
 			CandidateHeadSHA: promptContext.CandidateHeadSHA,
 		}, nil
 	}

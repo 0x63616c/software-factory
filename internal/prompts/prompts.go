@@ -54,18 +54,11 @@ type Input struct {
 	// Turn is which of that stage's own turns this is, 1-indexed — the same
 	// number work.StageKey.Turn carries, which is where callers get it.
 	//
-	// Only review renders it today, and it renders it against
-	// work.MaxReviewTurns: a review turn that cannot tell turn 1 from the
-	// last one cannot weigh a blocking finding against the run ending on it.
+	// Only review renders it today.
 	// Zero is not special-cased, because every real call site has a turn; a
 	// zero would render as "turn 0", which reads as obviously wrong rather
 	// than as plausible.
 	Turn int
-
-	// MaxReviewTurns is the immutable budget for this run's review loop. The
-	// target workflow supplies its own policy; legacy activities use their
-	// retained work.MaxReviewTurns policy at their call site.
-	MaxReviewTurns int
 
 	// Ticket is the issue and its thread, as the issue's authors wrote them.
 	// Every field of it is attacker-controlled text and is rendered inside the
@@ -179,7 +172,7 @@ func (in Input) staticValues() (map[string]string, int, error) {
 		"ticket_body":   body(in.Ticket),
 	}
 
-	stageInput, err := buildStageInput(in.Stage, in.Turn, in.MaxReviewTurns, in.Prior, in.PromptContext)
+	stageInput, err := buildStageInput(in.Stage, in.Turn, in.Prior, in.PromptContext)
 	if err != nil {
 		return nil, 0, err
 	}

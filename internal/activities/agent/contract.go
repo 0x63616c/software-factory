@@ -9,13 +9,12 @@ import (
 	"github.com/0x63616c/software-factory/internal/work"
 )
 
-// AgentMetrics is the bounded provider-neutral metric surface used by both
+// AgentMetrics is the provider-neutral metric surface used by both
 // production activity composition roots.
 type AgentMetrics interface {
 	AgentModelTurn(work.Model, telemetry.AgentOutcome, work.Usage, bool, int64, time.Duration)
 	AgentToolCall(string, telemetry.AgentOutcome, int64, time.Duration)
 	AgentActivityRetry(string)
-	AgentBudgetExhausted(string)
 	AgentChildFinished(telemetry.AgentOutcome)
 }
 
@@ -25,12 +24,11 @@ func (noopAgentMetrics) AgentModelTurn(work.Model, telemetry.AgentOutcome, work.
 }
 func (noopAgentMetrics) AgentToolCall(string, telemetry.AgentOutcome, int64, time.Duration) {}
 func (noopAgentMetrics) AgentActivityRetry(string)                                          {}
-func (noopAgentMetrics) AgentBudgetExhausted(string)                                        {}
 func (noopAgentMetrics) AgentChildFinished(telemetry.AgentOutcome)                          {}
 
 // PromptRenderer is the existing product-owned stage prompt and result format.
 type PromptRenderer interface {
-	Render(key work.StageKey, detail work.TicketDetail, prior work.PriorTurns, promptContext work.AgentPromptContext, maxReviewSteps int) (prompt string, schema []byte, err error)
+	Render(key work.StageKey, detail work.TicketDetail, prior work.PriorTurns, promptContext work.AgentPromptContext) (prompt string, schema []byte, err error)
 	Decode(stage work.Stage, result []byte) (work.StageOutput, error)
 }
 
@@ -65,8 +63,10 @@ type FinalizeOutput struct {
 	TranscriptRef agent.TranscriptRef
 }
 
-// LifecycleInput contains only bounded terminal classification metadata.
+// LifecycleInput contains only terminal classification metadata.
 type LifecycleInput struct {
 	Outcome telemetry.AgentOutcome
-	Budget  string
+	// Budget decodes lifecycle commands from pre-unbounded workflow histories.
+	// RecordLifecycle deliberately ignores it.
+	Budget string
 }

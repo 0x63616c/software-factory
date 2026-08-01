@@ -51,20 +51,7 @@ const (
 	// cannot make one stage wait ever longer.
 	StageRetryMaximumInterval = 5 * time.Minute
 
-	// MaxRunDuration is the workflow run timeout for one ticket: above
-	// RunPolicy.RunBudget()'s worst case (MaxStageInvocations stage
-	// invocations at MaxStageDuration each — 19 hours today), with room for
-	// the cheap activities between them — labels, status comments, the
-	// Run Worker's own lifecycle.
-	//
-	// This grew from 6 hours under the five-stages-once pipeline to 24 under
-	// the pipeline rewrite's implement/review loop: MaxStageInvocations is 19
-	// rather than 5, and 19*MaxStageDuration (19h) does not fit inside 6h. It
-	// is a theoretical ceiling, not the expected case — "Sizing, measured" in
-	// the pipeline-rewrite spec measured real implement turns at 62s-617s, so
-	// a 15-turn run in practice finishes in low single-digit hours, not 19 —
-	// but Validate checks the ceiling every stage using its whole timeout
-	// could reach, not the common case, so this has to fit it.
+	// MaxRunDuration is the workflow run timeout for one ticket.
 	MaxRunDuration = 24 * time.Hour
 
 	// RunWorkerDeadline is the pod's activeDeadlineSeconds, above the run
@@ -82,11 +69,8 @@ const (
 // Step 3 (D1/D4 in the addendum to the sandbox-as-worker spec, #434) adds two
 // more deadlines to the same ladder: workflow.SessionOptions.ExecutionTimeout
 // and .CreationTimeout, for the Session the WorkTicket workflow holds open
-// across a run's Run Worker pod. Both are var, not const, because the second is
-// derived from DefaultRunPolicy() rather than written as a literal — see its
-// own comment — and a const cannot call a function. Neither is configurable
-// for the same reason nothing else on this ladder is.
-var (
+// across a run's Run Worker pod.
+const (
 	// SessionExecutionTimeout is workflow.SessionOptions.ExecutionTimeout: how
 	// long the Session covering one ticket's run may stay open.
 	//
@@ -108,15 +92,5 @@ var (
 	// with ScheduleToStartTimeout: CreationTimeout, and ScheduleToStartTimeout
 	// is always non-retryable) — so sizing it is meaningful.
 	//
-	// Derived, not guessed: D1 ships no warm pool, so every pod is created
-	// fresh for its own ticket, which makes CreateSession's wait exactly the
-	// same wait WaitSandboxReady already performs today — "pod created until
-	// that pod can do the next thing asked of it" — just observed a
-	// different way (there, an activity polling pod readiness; here, the
-	// pod's own embedded worker polling its task queue). WaitSandboxReady
-	// runs under controlOptions() (workticket.go), so its own existing bound
-	// is DefaultRunPolicy's ControlTimeout retried ControlAttempts times, and
-	// this reuses that bound directly rather than writing a second number
-	// that could disagree with it.
-	SessionCreationTimeout = DefaultRunPolicy().ControlTimeout * time.Duration(DefaultRunPolicy().ControlAttempts)
+	SessionCreationTimeout = 10 * time.Minute
 )

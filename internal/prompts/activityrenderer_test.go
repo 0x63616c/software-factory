@@ -1,7 +1,6 @@
 package prompts
 
 import (
-	"strconv"
 	"strings"
 	"testing"
 
@@ -21,7 +20,7 @@ func TestActivityRendererMatchesTheUnderlyingRenderer(t *testing.T) {
 	detail := ticket()
 	prior := everyDocument()
 
-	prompt, schema, err := adapter.Render(work.StageKey{Ticket: detail.Number, RunID: "r", Stage: stage, Turn: 1}, detail, prior, work.AgentPromptContext{}, work.MaxReviewTurns)
+	prompt, schema, err := adapter.Render(work.StageKey{Ticket: detail.Number, RunID: "r", Stage: stage, Turn: 1}, detail, prior, work.AgentPromptContext{})
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -61,7 +60,7 @@ func TestActivityRendererSchemaMatchesEachStagesOwnFile(t *testing.T) {
 			t.Fatalf("reading %s: %v", file, err)
 		}
 
-		_, schema, err := adapter.Render(work.StageKey{Ticket: detail.Number, RunID: "r", Stage: stage, Turn: 1}, detail, prior, work.AgentPromptContext{}, work.MaxReviewTurns)
+		_, schema, err := adapter.Render(work.StageKey{Ticket: detail.Number, RunID: "r", Stage: stage, Turn: 1}, detail, prior, work.AgentPromptContext{})
 		if err != nil {
 			t.Fatalf("Render(%s): %v", stage, err)
 		}
@@ -103,7 +102,7 @@ func TestActivityRendererFailsLikeTheRendererItWraps(t *testing.T) {
 	t.Parallel()
 
 	adapter := NewActivityRenderer(newTestRenderer(t))
-	_, _, err := adapter.Render(work.StageKey{Stage: work.StagePlan, Turn: 1}, work.TicketDetail{}, work.PriorTurns{}, work.AgentPromptContext{}, work.MaxReviewTurns)
+	_, _, err := adapter.Render(work.StageKey{Stage: work.StagePlan, Turn: 1}, work.TicketDetail{}, work.PriorTurns{}, work.AgentPromptContext{})
 	if err == nil {
 		t.Fatal("Render with an empty ticket detail: want an error, got nil")
 	}
@@ -112,7 +111,7 @@ func TestActivityRendererFailsLikeTheRendererItWraps(t *testing.T) {
 // TestActivityRendererRendersTheKeysOwnTurn is why Render takes a StageKey
 // rather than a bare Stage. Every other test here renders turn 1, so an
 // adapter that dropped Turn — or hardcoded it — would be green while every
-// review prompt in production said "turn 0 of 3".
+// review prompt in production said "turn 0".
 func TestActivityRendererRendersTheKeysOwnTurn(t *testing.T) {
 	t.Parallel()
 
@@ -120,49 +119,18 @@ func TestActivityRendererRendersTheKeysOwnTurn(t *testing.T) {
 	detail := ticket()
 
 	prompt, _, err := adapter.Render(
-		work.StageKey{Ticket: detail.Number, RunID: "r", Stage: work.StageReview, Turn: work.MaxReviewTurns},
-		detail, everyDocument(), work.AgentPromptContext{}, work.MaxReviewTurns,
+		work.StageKey{Ticket: detail.Number, RunID: "r", Stage: work.StageReview, Turn: 7},
+		detail, everyDocument(), work.AgentPromptContext{},
 	)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	want := "turn " + strconv.Itoa(work.MaxReviewTurns) + " of " + strconv.Itoa(work.MaxReviewTurns)
+	want := "review turn 7"
 	if !strings.Contains(prompt, want) {
 		t.Errorf("the rendered review prompt does not say %q: the key's turn did not reach it", want)
 	}
-	if strings.Contains(prompt, "turn 0 of") {
+	if strings.Contains(prompt, "turn 0") {
 		t.Error("the rendered review prompt says turn 0: the key's turn was dropped")
-	}
-}
-
-// Target runs have a five-review-step budget. That policy must reach the real
-// activity renderer rather than silently falling back to the legacy pipeline's
-// three-turn constant: the fourth and fifth target reviewers need to know
-// they are still within their allotted bounded ledger.
-func TestActivityRendererRendersTheTargetReviewBudgetAtTurnsFourAndFive(t *testing.T) {
-	t.Parallel()
-
-	adapter := NewActivityRenderer(newTestRenderer(t))
-	detail := ticket()
-	for _, turn := range []int{4, 5} {
-		prior := everyDocument()
-		for earlier := 1; earlier < turn; earlier++ {
-			prior.ReviewLedger = append(prior.ReviewLedger, work.ReviewTurnRecord{Turn: earlier})
-		}
-		prompt, _, err := adapter.Render(
-			work.StageKey{Ticket: detail.Number, RunID: "target-run", Stage: work.StageReview, Turn: turn},
-			detail, prior, work.AgentPromptContext{}, 5,
-		)
-		if err != nil {
-			t.Fatalf("Render(review turn %d): %v", turn, err)
-		}
-		want := "turn " + strconv.Itoa(turn) + " of 5"
-		if !strings.Contains(prompt, want) {
-			t.Errorf("target review prompt does not say %q:\n%s", want, prompt)
-		}
-		if len(prior.ReviewLedger) != turn-1 {
-			t.Fatalf("review %d ledger = %d entries, want bounded %d", turn, len(prior.ReviewLedger), turn-1)
-		}
 	}
 }
 
@@ -174,7 +142,7 @@ func TestActivityRendererCarriesAuthoritativeAgentPromptContext(t *testing.T) {
 
 	reviewer, _, err := adapter.Render(
 		work.StageKey{Ticket: detail.Number, RunID: "r", Stage: work.StageReview, Turn: 1},
-		detail, prior, work.AgentPromptContext{CandidateHeadSHA: "H1"}, work.MaxReviewTurns,
+		detail, prior, work.AgentPromptContext{CandidateHeadSHA: "H1"},
 	)
 	if err != nil {
 		t.Fatalf("Render(review): %v", err)
@@ -185,7 +153,7 @@ func TestActivityRendererCarriesAuthoritativeAgentPromptContext(t *testing.T) {
 
 	implementer, _, err := adapter.Render(
 		work.StageKey{Ticket: detail.Number, RunID: "r", Stage: work.StageImplement, Turn: 2},
-		detail, prior, work.AgentPromptContext{CandidateHeadSHA: "H1", CIFailures: []work.CheckFailure{{Name: "test", Fingerprint: "abc", Evidence: "expected true to be false"}}}, work.MaxReviewTurns,
+		detail, prior, work.AgentPromptContext{CandidateHeadSHA: "H1", CIFailures: []work.CheckFailure{{Name: "test", Fingerprint: "abc", Evidence: "expected true to be false"}}},
 	)
 	if err != nil {
 		t.Fatalf("Render(implement): %v", err)
@@ -198,7 +166,7 @@ func TestActivityRendererCarriesAuthoritativeAgentPromptContext(t *testing.T) {
 
 	blockingReview, _, err := adapter.Render(
 		work.StageKey{Ticket: detail.Number, RunID: "r", Stage: work.StageImplement, Turn: 2},
-		detail, prior, work.AgentPromptContext{CandidateHeadSHA: "H1", ReviewFindings: []work.Finding{{ID: "finding_1", Blocking: true, Summary: "repair the boundary"}}}, work.MaxReviewTurns,
+		detail, prior, work.AgentPromptContext{CandidateHeadSHA: "H1", ReviewFindings: []work.Finding{{ID: "finding_1", Blocking: true, Summary: "repair the boundary"}}},
 	)
 	if err != nil {
 		t.Fatalf("Render(blocking-review implement): %v", err)

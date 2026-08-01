@@ -1182,7 +1182,7 @@ func (s *Store) FinalizeRunFailure(ctx context.Context, in RunFailureInput) (Ter
 			return TerminalResult{}, fmt.Errorf("failing run: failing step: %w", wrapQueryErr(err))
 		}
 	}
-	if in.Outcome != work.RunOutcomeFailed && in.Outcome != work.RunOutcomeExhausted {
+	if in.Outcome != work.RunOutcomeFailed {
 		return TerminalResult{}, fmt.Errorf("failing run: invalid terminal outcome: %w", work.ErrPermanent)
 	}
 	failedRun, err := q.CompleteTargetRunTerminal(ctx, storedb.CompleteTargetRunTerminalParams{ID: id, TargetOutcome: pgOptionalText(string(in.Outcome)), TargetFailureKind: string(in.FailureKind), EndedAt: pgTimestamp(in.EndedAt)})

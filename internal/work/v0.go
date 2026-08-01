@@ -8,8 +8,6 @@ const (
 	RunOutcomeSucceeded RunOutcome = "succeeded"
 	// RunOutcomeCanceled records an interrupted Run whose Ticket returned to open.
 	RunOutcomeCanceled RunOutcome = "canceled"
-	// RunOutcomeExhausted records a Run that spent its semantic budget.
-	RunOutcomeExhausted RunOutcome = "exhausted"
 	// RunOutcomeFailed records unrecoverable infrastructure or input failure.
 	RunOutcomeFailed RunOutcome = "failed"
 )
@@ -24,10 +22,6 @@ const (
 	RunFailureInvalidInput RunFailureKind = "invalid_input"
 	// RunFailureAgentUnrecoverable records an agent execution that cannot resume.
 	RunFailureAgentUnrecoverable RunFailureKind = "agent_unrecoverable"
-	// RunFailureAgentAttemptBudget records exhaustion of the Agent Attempt budget.
-	RunFailureAgentAttemptBudget RunFailureKind = "agent_attempt_budget"
-	// RunFailureReviewBudget records exhaustion of the Review Step budget.
-	RunFailureReviewBudget RunFailureKind = "review_budget"
 	// RunFailureCIUnobserved records an unresolved CI observation deadline.
 	RunFailureCIUnobserved RunFailureKind = "ci_unobserved"
 	// RunFailureGitHubAuth records an unrecoverable GitHub authentication failure.

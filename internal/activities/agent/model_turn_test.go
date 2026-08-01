@@ -161,7 +161,7 @@ func TestModelTurnRejectsPinnedToolsetFingerprintMismatch(t *testing.T) {
 	}
 }
 
-func TestRecordLifecycleEmitsTerminalAndBudgetMetrics(t *testing.T) {
+func TestRecordLifecycleEmitsTerminalMetrics(t *testing.T) {
 	t.Parallel()
 
 	registry := prometheus.NewRegistry()
@@ -173,15 +173,13 @@ func TestRecordLifecycleEmitsTerminalAndBudgetMetrics(t *testing.T) {
 		t.Fatalf("NewObservedActivities() error = %v", err)
 	}
 	if err := activities.RecordLifecycle(t.Context(), agentactivities.LifecycleInput{
-		Outcome: telemetry.AgentOutcomeCancelled, Budget: "tool_calls",
+		Outcome: telemetry.AgentOutcomeCancelled,
 	}); err != nil {
 		t.Fatalf("RecordLifecycle() error = %v", err)
 	}
-	got, err := testutil.GatherAndCount(
-		registry, "software_factory_agent_child_outcomes_total", "software_factory_agent_budget_exhaustions_total",
-	)
-	if err != nil || got != 2 {
-		t.Fatalf("lifecycle metric families = %d, %v; want 2", got, err)
+	got, err := testutil.GatherAndCount(registry, "software_factory_agent_child_outcomes_total")
+	if err != nil || got != 1 {
+		t.Fatalf("lifecycle metric families = %d, %v; want 1", got, err)
 	}
 }
 
