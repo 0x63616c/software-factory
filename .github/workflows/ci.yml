@@ -50,6 +50,10 @@ jobs:
         with:
           bun-version: 1.2.19
       - uses: extractions/setup-just@v3
+      - name: Install required system tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ripgrep
       - name: Install pinned generators and linter
         run: |
           go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
