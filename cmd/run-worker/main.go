@@ -6,7 +6,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -28,6 +27,7 @@ import (
 	temporalapi "github.com/0x63616c/software-factory/internal/clients/temporal"
 	"github.com/0x63616c/software-factory/internal/clock"
 	"github.com/0x63616c/software-factory/internal/config"
+	"github.com/0x63616c/software-factory/internal/httpserver"
 	"github.com/0x63616c/software-factory/internal/telemetry"
 	"github.com/0x63616c/software-factory/internal/work"
 )
@@ -61,13 +61,20 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("listening for Run Worker metrics on %s: %w", cfg.MetricsAddr, err)
 	}
-	server := &http.Server{Handler: promhttp.HandlerFor(registry, promhttp.HandlerOpts{}), ReadHeaderTimeout: 5 * time.Second}
-	go func() {
-		if serveErr := server.Serve(listener); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
-			logger.Error("the Run Worker metrics server stopped", "error", serveErr)
+	metricsServer := httpserver.ServeWithServer(
+		listener,
+		&http.Server{
+			Handler:           promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
+			ReadHeaderTimeout: 5 * time.Second,
+		},
+		logger,
+		"Run Worker metrics",
+	)
+	defer func() {
+		if err := metricsServer.Shutdown(context.Background(), shutdownGrace); err != nil {
+			logger.Warn("the Run Worker metrics server did not stop cleanly", "error", err)
 		}
 	}()
-	defer stopMetricsServer(server, logger)
 
 	temporal, err := temporalapi.Dial(temporalapi.Options{
 		HostPort: cfg.TemporalHostPort, Namespace: cfg.TemporalNamespace,
@@ -128,12 +135,4 @@ func newActivities(cfg config.RunWorker, logger *slog.Logger) (*activities.RunWo
 		return nil, fmt.Errorf("building target Run Worker activities: %w", err)
 	}
 	return target, nil
-}
-
-func stopMetricsServer(server *http.Server, logger *slog.Logger) {
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownGrace)
-	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
-		logger.Warn("the Run Worker metrics server did not stop cleanly", "error", err)
-	}
 }

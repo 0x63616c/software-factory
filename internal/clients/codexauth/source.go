@@ -2,12 +2,13 @@ package codexauth
 
 import (
 	"context"
-	"errors"
+	stdErrors "errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/0x63616c/software-factory/internal/clock"
+	"github.com/0x63616c/software-factory/internal/retry"
 	"github.com/0x63616c/software-factory/internal/work"
 )
 
@@ -261,7 +262,7 @@ func (s *Source) parse(values map[string][]byte) (credentialFile, refreshState, 
 // read. Collapsing the two would turn an apiserver blip into a demand for a
 // browser login, and a genuinely absent secret into an endless retry.
 func (s *Source) readError(err error) error {
-	if errors.Is(err, work.ErrSecretNotFound) {
+	if stdErrors.Is(err, work.ErrSecretNotFound) {
 		s.metrics.CredentialDead(DeathUnseeded)
 		return s.unusable(fmt.Errorf("the secret holding %s does not exist: %w", CredentialKey, ErrUnseeded))
 	}
@@ -330,7 +331,7 @@ func (s *Source) refresh(ctx context.Context, cred credentialFile, state refresh
 	}
 	leaseVersion, err := s.store.Put(ctx, map[string][]byte{StateKey: leaseBytes}, version)
 	if err != nil {
-		if errors.Is(err, work.ErrVersionConflict) {
+		if stdErrors.Is(err, work.ErrVersionConflict) {
 			// Contention, and nothing has been presented. The next read
 			// usually finds a token somebody else already rotated.
 			return roundResult{}, nil
@@ -462,28 +463,44 @@ func (s *Source) recoverSettle(
 	res Refreshed,
 	cause error,
 ) (work.CredentialFile, error) {
-	backoff := s.storeBackoff
-	for range s.storeAttempts - 1 {
-		if err := s.clock.Sleep(ctx, backoff); err != nil {
-			return work.CredentialFile{}, s.credentialLost(fmt.Errorf("cancelled while storing a rotated credential: %w", err))
-		}
-		backoff *= 2
+	backoffForAttempt := func(attempt int) time.Duration {
+		return s.storeBackoff << attempt
+	}
 
+	var (
+		causeErr    = cause
+		recovered   work.CredentialFile
+		terminalErr error
+	)
+	if s.storeAttempts <= 1 {
+		s.metrics.CredentialDead(DeathCredentialLost)
+		s.log.ErrorContext(ctx, "a rotated codex credential could not be stored; no recovery attempts remain",
+			"holder", s.holder, "serial", ourSerial, "cause", causeErr, "remedy", remedy)
+		return work.CredentialFile{}, s.credentialLost(causeErr)
+	}
+	if err := s.clock.Sleep(ctx, backoffForAttempt(0)); err != nil {
+		return work.CredentialFile{}, s.credentialLost(fmt.Errorf("cancelled while recovering a rotated credential: %w", err))
+	}
+	err := retry.RetryWithBackoff(ctx, s.clock, s.storeAttempts-1, func(attempt int) time.Duration {
+		return backoffForAttempt(attempt + 1)
+	}, func(ctx context.Context, _ int) (bool, error) {
 		observed, version, err := s.store.Get(ctx)
 		if err != nil {
-			cause = err
-			continue
+			causeErr = err
+			return true, err
 		}
 		state, err := parseRefreshState(observed[StateKey])
 		if err != nil {
-			return work.CredentialFile{}, s.unusable(err)
+			terminalErr = s.unusable(err)
+			return false, terminalErr
 		}
 
 		switch {
 		case state.Serial == ourSerial && state.LastWriter == s.holder:
 			s.log.WarnContext(ctx, "a codex rotation was stored but its confirmation was lost; recovered by reading it back",
 				"holder", s.holder, "serial", ourSerial)
-			return s.usable(rotated, res)
+			recovered, terminalErr = s.usable(rotated, res)
+			return false, terminalErr
 
 		case state.Serial == prev.Serial && state.Attempt != nil &&
 			state.Attempt.Holder == s.holder && state.Attempt.Serial == prev.Serial:
@@ -492,10 +509,11 @@ func (s *Source) recoverSettle(
 			// or not at all.
 			if _, err := s.store.Put(ctx, values, version); err != nil {
 				cause = err
-				continue
+				return true, err
 			}
 			s.log.InfoContext(ctx, "rotated the codex credential", "holder", s.holder, "serial", ourSerial)
-			return s.usable(rotated, res)
+			recovered, terminalErr = s.usable(rotated, res)
+			return false, terminalErr
 
 		case state.Serial == prev.Serial && state.Attempt != nil && state.Attempt.TakeoverOf == s.holder:
 			// Our lease expired mid-settle and somebody took it over. That is
@@ -504,23 +522,30 @@ func (s *Source) recoverSettle(
 			s.metrics.CredentialDead(DeathCredentialLost)
 			s.log.ErrorContext(ctx, "a rotated codex credential could not be stored before another holder took the lease over",
 				"holder", s.holder, "serial", ourSerial, "taken_over_by", state.Attempt.Holder, "remedy", remedy)
-			return work.CredentialFile{}, s.credentialLost(fmt.Errorf("%s took the lease over before the rotation could be stored", state.Attempt.Holder))
+			terminalErr = s.credentialLost(fmt.Errorf("%s took the lease over before the rotation could be stored", state.Attempt.Holder))
+			return false, terminalErr
 
 		default:
 			s.metrics.CredentialDead(DeathSingleWriterViolated)
 			s.log.ErrorContext(ctx, "INV-1 violated: something other than this source rotated the codex credential",
 				"our_holder", s.holder, "our_serial", ourSerial,
 				"observed_writer", state.LastWriter, "observed_serial", state.Serial, "remedy", remedy)
-			return work.CredentialFile{}, s.unusable(fmt.Errorf(
+			terminalErr = s.unusable(fmt.Errorf(
 				"expected serial %d written by %s, found serial %d written by %q: %w",
 				ourSerial, s.holder, state.Serial, state.LastWriter, ErrSingleWriterViolated))
+			return false, terminalErr
 		}
+	})
+	if err != nil {
+		if terminalErr != nil {
+			return work.CredentialFile{}, terminalErr
+		}
+		s.metrics.CredentialDead(DeathCredentialLost)
+		s.log.ErrorContext(ctx, "a rotated codex credential could not be stored; the previous refresh token is already spent",
+			"holder", s.holder, "serial", ourSerial, "cause", causeErr, "remedy", remedy)
+		return work.CredentialFile{}, s.credentialLost(causeErr)
 	}
-
-	s.metrics.CredentialDead(DeathCredentialLost)
-	s.log.ErrorContext(ctx, "a rotated codex credential could not be stored; the previous refresh token is already spent",
-		"holder", s.holder, "serial", ourSerial, "cause", cause, "remedy", remedy)
-	return work.CredentialFile{}, s.credentialLost(cause)
+	return recovered, nil
 }
 
 // usable checks that a rotated token is worth returning, having already

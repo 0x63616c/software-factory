@@ -15,10 +15,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/0x63616c/software-factory/internal/clock"
 	"github.com/0x63616c/software-factory/internal/config"
+	"github.com/0x63616c/software-factory/internal/retry"
 )
 
 const (
@@ -122,11 +124,16 @@ func (h *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (h *Handler) forward(ctx context.Context, target config.RelayTarget, delivery Delivery) {
-	for attempt := range maxAttempts {
+	err := retry.RetryWithBackoff(ctx, h.clock, maxAttempts, func(attempt int) time.Duration {
+		if attempt >= len(retryDelays) {
+			return retryDelays[len(retryDelays)-1]
+		}
+		return retryDelays[attempt]
+	}, func(ctx context.Context, attempt int) (bool, error) {
 		attemptContext, cancel := context.WithTimeout(ctx, attemptTimeout)
+		defer cancel()
 		startedAt := h.clock.Now()
 		status, err := h.poster.Post(attemptContext, target, delivery)
-		cancel()
 		h.metrics.attempts.WithLabelValues(target.Name, attemptOutcome(status, err)).Inc()
 		h.metrics.duration.WithLabelValues(target.Name).Observe(h.clock.Now().Sub(startedAt).Seconds())
 		h.logger.Info("github webhook forwarded",
@@ -136,28 +143,33 @@ func (h *Handler) forward(ctx context.Context, target config.RelayTarget, delive
 			slog.String("event", delivery.Event),
 		)
 
-		if err == nil {
-			if status < http.StatusBadRequest {
-				return
-			}
-			if status < http.StatusInternalServerError {
-				break
-			}
+		switch {
+		case err == nil && status < http.StatusBadRequest:
+			return false, nil
+		case err == nil && status < http.StatusInternalServerError:
+			return false, errors.New("webhook target responded with non-retryable status")
+		case err == nil && status >= http.StatusInternalServerError && attempt < maxAttempts-1:
+			return true, nil
+		case err == nil && status >= http.StatusInternalServerError:
+			return false, errors.New("webhook target still returning server errors")
+		case err != nil && attempt < maxAttempts-1:
+			return true, err
+		case err != nil:
+			return false, err
 		}
-		if attempt == maxAttempts-1 {
-			break
-		}
-		if sleepErr := h.clock.Sleep(ctx, retryDelays[attempt]); sleepErr != nil {
-			return
-		}
-	}
 
-	h.metrics.givenUp.WithLabelValues(target.Name).Inc()
-	h.logger.Error("webhook forwarding gave up",
-		slog.String("target", target.Name),
-		slog.String("delivery_id", delivery.DeliveryID),
-		slog.String("event", delivery.Event),
-	)
+		return false, nil
+	})
+
+	if err != nil {
+		h.metrics.givenUp.WithLabelValues(target.Name).Inc()
+		h.logger.Error("webhook forwarding gave up",
+			"error", err,
+			slog.String("target", target.Name),
+			slog.String("delivery_id", delivery.DeliveryID),
+			slog.String("event", delivery.Event),
+		)
+	}
 }
 
 func attemptOutcome(status int, err error) string {

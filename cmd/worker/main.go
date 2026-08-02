@@ -12,7 +12,6 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -42,6 +41,7 @@ import (
 	temporalapi "github.com/0x63616c/software-factory/internal/clients/temporal"
 	"github.com/0x63616c/software-factory/internal/clock"
 	"github.com/0x63616c/software-factory/internal/config"
+	"github.com/0x63616c/software-factory/internal/httpserver"
 	"github.com/0x63616c/software-factory/internal/prompts"
 	"github.com/0x63616c/software-factory/internal/store"
 	"github.com/0x63616c/software-factory/internal/telemetry"
@@ -141,16 +141,20 @@ func run() error {
 		return fmt.Errorf("listening for metrics on %s (METRICS_ADDR): %w", cfg.MetricsAddr, err)
 	}
 	var activationReady atomic.Bool
-	server := &http.Server{
-		Handler:           observability(registry, activationReady.Load),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-	go func() {
-		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("the metrics server stopped", slog.String("error", err.Error()))
+	metricsServer := httpserver.ServeWithServer(
+		listener,
+		&http.Server{
+			Handler:           observability(registry, activationReady.Load),
+			ReadHeaderTimeout: 5 * time.Second,
+		},
+		logger,
+		"worker metrics",
+	)
+	defer func() {
+		if err := metricsServer.Shutdown(context.Background(), shutdownGrace); err != nil {
+			logger.Warn("the metrics server did not stop cleanly", slog.String("error", err.Error()))
 		}
 	}()
-	defer stopServer(server, logger)
 
 	temporal, err := temporalapi.Dial(temporalapi.Options{
 		HostPort:  cfg.TemporalHostPort,
@@ -418,11 +422,3 @@ func cloneURL(cfg config.GitHub) string {
 // rather than returned: the worker has already drained by the time this runs,
 // and a metrics server that would not close is not a reason to report the run
 // as failed.
-func stopServer(server *http.Server, logger *slog.Logger) {
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownGrace)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		logger.Warn("the metrics server did not shut down cleanly", slog.String("error", err.Error()))
-	}
-}

@@ -19,7 +19,8 @@ cd "$repo_root"
 
 ./scripts/archive-check.sh
 ./scripts/regenerate.sh
-git diff --exit-code -- internal/api/openapi.yaml internal/store/storedb web/src/api/generated.ts
+git diff --exit-code -- internal/api/openapi.yaml web/src/api/generated.ts
+git diff --exit-code -- internal/store/storedb
 
 jq --exit-status '
   .platform == "linux/amd64" and

@@ -5,6 +5,7 @@ go 1.26.5
 require (
 	github.com/MicahParks/jwkset v0.8.0
 	github.com/MicahParks/keyfunc/v3 v3.4.0
+	github.com/cockroachdb/errors v1.14.0
 	github.com/danielgtaylor/huma/v2 v2.38.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-github/v78 v78.0.0
@@ -26,7 +27,6 @@ require (
 	k8s.io/apimachinery v0.36.3
 	k8s.io/client-go v0.36.3
 	k8s.io/klog/v2 v2.140.0
-	k8s.io/streaming v0.36.3
 )
 
 require (
@@ -34,10 +34,13 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
+	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
 	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
+	github.com/getsentry/sentry-go v0.46.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
@@ -46,7 +49,6 @@ require (
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -55,20 +57,23 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
-	github.com/moby/spdystream v0.5.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nexus-rpc/nexus-proto-annotations v0.1.0 // indirect
 	github.com/nexus-rpc/sdk-go v0.6.0 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
+	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect

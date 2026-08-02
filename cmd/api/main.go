@@ -4,8 +4,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -15,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2/humacli"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -29,6 +28,7 @@ import (
 	temporalapi "github.com/0x63616c/software-factory/internal/clients/temporal"
 	"github.com/0x63616c/software-factory/internal/config"
 	"github.com/0x63616c/software-factory/internal/database"
+	"github.com/0x63616c/software-factory/internal/httpserver"
 	"github.com/0x63616c/software-factory/internal/store"
 	"github.com/0x63616c/software-factory/internal/telemetry"
 	"github.com/0x63616c/software-factory/internal/webhook"
@@ -65,10 +65,10 @@ func newCLI(stdout, stderr io.Writer) humacli.CLI {
 func writeOpenAPI(writer io.Writer) error {
 	spec, err := factoryapi.New(buildVersion, nil).OpenAPIYAML()
 	if err != nil {
-		return fmt.Errorf("generate OpenAPI 3.1 document: %w", err)
+		return errors.Wrap(err, "generate OpenAPI 3.1 document")
 	}
 	if _, err := writer.Write(spec); err != nil {
-		return fmt.Errorf("write OpenAPI 3.1 document: %w", err)
+		return errors.Wrap(err, "write OpenAPI 3.1 document")
 	}
 	return nil
 }
@@ -76,7 +76,7 @@ func writeOpenAPI(writer io.Writer) error {
 func run() error {
 	cfg, err := config.LoadAPI()
 	if err != nil {
-		return fmt.Errorf("reading API configuration: %w", err)
+		return errors.Wrap(err, "reading API configuration")
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
 	authentication, err := auth.New(auth.Options{
@@ -87,30 +87,30 @@ func run() error {
 		RunWorkerBearer: cfg.RunWorkerBearer,
 	})
 	if err != nil {
-		return fmt.Errorf("starting API authentication: %w", err)
+		return errors.Wrap(err, "starting API authentication")
 	}
 
 	db, err := sql.Open("pgx", cfg.DatabaseURL)
 	if err != nil {
-		return fmt.Errorf("opening PostgreSQL connection: %w", err)
+		return errors.Wrap(err, "opening PostgreSQL connection")
 	}
 	defer func() { _ = db.Close() }()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
-		return fmt.Errorf("pinging PostgreSQL before API startup: %w", err)
+		return errors.Wrap(err, "pinging PostgreSQL before API startup")
 	}
 	if err := database.ApplyMigrations(ctx, db); err != nil {
-		return fmt.Errorf("applying PostgreSQL migrations before API startup: %w", err)
+		return errors.Wrap(err, "applying PostgreSQL migrations before API startup")
 	}
 	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
-		return fmt.Errorf("opening PostgreSQL pool for ticket API: %w", err)
+		return errors.Wrap(err, "opening PostgreSQL pool for ticket API")
 	}
 	defer pool.Close()
 	blobStore, err := blobs.NewHTTPStore(cfg.BlobsURL, nil)
 	if err != nil {
-		return fmt.Errorf("opening HTTP blob store: %w", err)
+		return errors.Wrap(err, "opening HTTP blob store")
 	}
 	temporal, err := temporalapi.Dial(temporalapi.Options{
 		HostPort:  cfg.TemporalHostPort,
@@ -118,7 +118,7 @@ func run() error {
 		Logger:    tlog.NewStructuredLogger(logger),
 	}, blobStore, nil)
 	if err != nil {
-		return fmt.Errorf("dialling Temporal at %s in namespace %s: %w", cfg.TemporalHostPort, cfg.TemporalNamespace, err)
+		return errors.Wrapf(err, "dialling Temporal at %s in namespace %s", cfg.TemporalHostPort, cfg.TemporalNamespace)
 	}
 	defer temporal.Close()
 
@@ -127,13 +127,21 @@ func run() error {
 	_ = telemetry.NewMetrics(registry)
 	metricsListener, err := net.Listen("tcp", cfg.MetricsAddr)
 	if err != nil {
-		return fmt.Errorf("listening for metrics on %s (METRICS_ADDR): %w", cfg.MetricsAddr, err)
+		return errors.Wrapf(err, "listening for metrics on %s (METRICS_ADDR)", cfg.MetricsAddr)
 	}
 	metricsMux := http.NewServeMux()
 	metricsMux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
-	go func() {
-		if err := http.Serve(metricsListener, metricsMux); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("the metrics server stopped", slog.String("error", err.Error()))
+	metricsServer := httpserver.ServeWithServer(
+		metricsListener,
+		&http.Server{
+			Handler:           metricsMux,
+			ReadHeaderTimeout: 5 * time.Second,
+		},
+		logger, "API metrics",
+	)
+	defer func() {
+		if err := metricsServer.Shutdown(context.Background(), 5*time.Second); err != nil {
+			logger.Warn("the metrics server did not stop cleanly", slog.String("error", err.Error()))
 		}
 	}()
 
@@ -153,25 +161,13 @@ func run() error {
 
 	listener, err := net.Listen("tcp", cfg.ListenAddr)
 	if err != nil {
-		return fmt.Errorf("listening for API requests on %s (API_ADDR): %w", cfg.ListenAddr, err)
+		return errors.Wrapf(err, "listening for API requests on %s (API_ADDR)", cfg.ListenAddr)
 	}
 	logger.Info("API starting", slog.String("address", cfg.ListenAddr))
-	server := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
-	serveErr := make(chan error, 1)
-	go func() { serveErr <- server.Serve(listener) }()
 	shutdown, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	select {
-	case err := <-serveErr:
-		if !errors.Is(err, http.ErrServerClosed) {
-			return fmt.Errorf("serving API requests: %w", err)
-		}
-	case <-shutdown.Done():
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			return fmt.Errorf("shutting down API server: %w", err)
-		}
+	if err := httpserver.RunWithShutdownError(shutdown, listener, mux, logger, "API"); err != nil {
+		return errors.Wrap(err, "serving API server")
 	}
 	return nil
 }
