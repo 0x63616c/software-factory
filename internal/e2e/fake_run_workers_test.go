@@ -29,13 +29,14 @@ type fakeRunWorkers struct {
 	workers    map[work.RunWorkerIdentity]worker.Worker
 	capability map[work.RunWorkerIdentity]string
 	revisions  atomic.Int32
+	script     *fakeScenario
 }
 
-func newFakeRunWorkers(t *testing.T, client temporalclient.Client, factoryStore *store.Store) *fakeRunWorkers {
+func newFakeRunWorkers(t *testing.T, client temporalclient.Client, factoryStore *store.Store, script *fakeScenario) *fakeRunWorkers {
 	t.Helper()
 	r := &fakeRunWorkers{
 		t: t, client: client, store: factoryStore,
-		workers: make(map[work.RunWorkerIdentity]worker.Worker), capability: make(map[work.RunWorkerIdentity]string),
+		workers: make(map[work.RunWorkerIdentity]worker.Worker), capability: make(map[work.RunWorkerIdentity]string), script: script,
 	}
 	t.Cleanup(func() {
 		r.mu.Lock()
@@ -79,7 +80,7 @@ func (r *fakeRunWorkers) Provision(_ context.Context, spec work.RunWorkerSpec, _
 	}
 	branch := spec.Env[work.RunWorkerBranchEnv]
 	target, err := activities.NewRunWorkerActivities(activities.RunWorkerDeps{
-		Clock: clock.System{}, Repository: fakeRepository{}, GitHub: fakeGitHub{},
+		Clock: clock.System{}, Repository: fakeRepository{script: r.script}, GitHub: r.script,
 		Identity: spec.Identity, Branch: branch,
 		RepositoryCheckpoints: func(identity work.RunWorkerIdentity) (activities.RepositoryCheckpoint, error) {
 			r.mu.Lock()
@@ -182,7 +183,7 @@ func (c repositoryCheckpoint) CheckpointEffect(ctx context.Context, in store.Git
 	})
 }
 
-type fakeRepository struct{}
+type fakeRepository struct{ script *fakeScenario }
 
 func (fakeRepository) Prepare(context.Context, string, string) (string, error) {
 	return "base-head", nil
@@ -192,47 +193,66 @@ func (fakeRepository) PrepareFromCommit(_ context.Context, _, _, commit string) 
 	return commit, nil
 }
 
-func (fakeRepository) Publish(context.Context, string) (string, error) {
-	return "candidate-head", nil
+func (repository fakeRepository) Publish(context.Context, string) (string, error) {
+	return repository.script.publishHead(), nil
 }
 
-type fakeGitHub struct{}
-
-func (fakeGitHub) PullRequestForBranch(context.Context, string) (work.PullRequest, bool, error) {
+func (*fakeScenario) PullRequestForBranch(context.Context, string) (work.PullRequest, bool, error) {
 	return work.PullRequest{}, false, nil
 }
 
-func (fakeGitHub) OpenOrUpdatePullRequest(_ context.Context, _, title, body string, _ *work.PullRequest) (work.PullRequest, error) {
+func (script *fakeScenario) OpenOrUpdatePullRequest(_ context.Context, _, title, body string, _ *work.PullRequest) (work.PullRequest, error) {
 	return work.PullRequest{
 		Number: 42, URL: "https://github.invalid/example/e2e/pull/42", State: work.PullRequestStateOpen,
-		HeadSHA: "candidate-head", BaseSHA: "base-head", Mergeability: work.PullRequestMergeabilityMergeable,
+		HeadSHA: script.currentHead(), BaseSHA: "base-head", Mergeability: work.PullRequestMergeabilityMergeable,
 		Draft: true, NodeID: "PR_e2e", Title: title, Body: body,
 	}, nil
 }
 
-func (fakeGitHub) MarkPullRequestReadyForReview(context.Context, string) error { return nil }
+func (*fakeScenario) MarkPullRequestReadyForReview(context.Context, string) error { return nil }
 
-func (fakeGitHub) MergePullRequest(_ context.Context, number int, expectedHead string) (work.PullRequestMergeResult, error) {
-	if number != 42 || expectedHead != "candidate-head" {
+func (script *fakeScenario) MergePullRequest(_ context.Context, number int, expectedHead string) (work.PullRequestMergeResult, error) {
+	if number != 42 || expectedHead != script.currentHead() {
 		return work.PullRequestMergeResult{}, fmt.Errorf("merge request = PR %d at %q", number, expectedHead)
 	}
+	outcome, err := script.nextMerge()
+	if err != nil {
+		return work.PullRequestMergeResult{}, err
+	}
+	if outcome == scenarioMergeHeadChanged {
+		head := script.advanceHead()
+		return work.PullRequestMergeResult{Outcome: work.PullRequestMergeHeadChanged, PullRequest: work.PullRequest{
+			Number: number, HeadSHA: head, BaseSHA: "base-head", NodeID: "PR_e2e", Mergeability: work.PullRequestMergeabilityMergeable,
+		}}, nil
+	}
+	script.recordConfirmedMerge(expectedHead)
 	return work.PullRequestMergeResult{
 		Outcome: work.PullRequestMergeConfirmed, MergeSHA: "merge-head",
 		PullRequest: work.PullRequest{Number: number, State: work.PullRequestStateClosed, HeadSHA: expectedHead, MergeSHA: "merge-head"},
 	}, nil
 }
 
-func (fakeGitHub) ChecksForCommit(_ context.Context, commit string, required []string) ([]work.CheckRun, error) {
-	if commit != "candidate-head" {
-		return nil, fmt.Errorf("checks requested for %q", commit)
+func (script *fakeScenario) ChecksForCommit(_ context.Context, commit string, required []string) ([]work.CheckRun, error) {
+	if err := script.recordCheck(commit); err != nil {
+		return nil, err
+	}
+	outcome, err := script.nextCI()
+	if err != nil {
+		return nil, err
 	}
 	checks := make([]work.CheckRun, 0, len(required))
 	for _, name := range required {
-		checks = append(checks, work.CheckRun{Name: name, Completed: true, Conclusion: "success"})
+		check := work.CheckRun{Name: name, Completed: true, Conclusion: "success"}
+		if outcome == scenarioCIFailure {
+			check.Conclusion = "failure"
+			check.FailureFingerprint = "scenario-failure"
+			check.FailureEvidence = "the deterministic scenario asked CI to fail"
+		}
+		checks = append(checks, check)
 	}
 	return checks, nil
 }
 
-func (fakeGitHub) RetirePullRequest(context.Context, int) (work.PullRequestRetirement, error) {
+func (*fakeScenario) RetirePullRequest(context.Context, int) (work.PullRequestRetirement, error) {
 	return work.PullRequestRetirement{}, nil
 }

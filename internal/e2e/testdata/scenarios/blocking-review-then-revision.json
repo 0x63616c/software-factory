@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "name": "blocking-review-then-revision",
+  "ci": ["success", "success"],
+  "reviews": ["blocking", "clean"],
+  "merges": ["confirmed"]
+}

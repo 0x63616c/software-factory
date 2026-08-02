@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "name": "combined-recovery",
+  "ci": ["failure", "success", "success", "success"],
+  "reviews": ["blocking", "clean", "clean"],
+  "merges": ["head_changed", "confirmed"]
+}
