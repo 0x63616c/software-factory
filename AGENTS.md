@@ -1,5 +1,9 @@
 # AGENTS.md - software-factory
 
+> Keep this file as the active source of agent instructions. If a lower-case
+> `agents.md` exists in this repo, keep it synchronized with this file in the same
+> commit. On case-insensitive filesystems, this is the same file.
+
 > **Scope: the active standalone repository, excluding `_archived/`.**
 > Everything in this file and in `docs/` governs the Go module, console, and every
 > image under `images/`. The Run Worker
@@ -14,6 +18,16 @@
 `docs/writing-scalable-typescript/`, not by `SoftwareStyle.md` or `.golangci.yml` below.
 
 For every task in this repository, treat [`docs/SoftwareStyle.md`](/Users/calum/code/github.com/0x63616c/software-factory/docs/SoftwareStyle.md) as the default style guide baseline and load it before making code changes.
+
+For every task in this repository, also load both:
+- [`docs/style-adoption.md`](/Users/calum/code/github.com/0x63616c/software-factory/docs/style-adoption.md)
+- [`docs/releasing.md`](/Users/calum/code/github.com/0x63616c/software-factory/docs/releasing.md)
+
+For implementation changes in Go, also follow these current conventions:
+- Use `github.com/cockroachdb/errors` for wrapped and classified errors. Prefer semantic error types and avoid `fmt.Errorf` without wrapping when context matters.
+- Use `internal/retry` for shared retry backoff behavior instead of duplicating ad-hoc retry loops.
+- Keep HTTP command entrypoints on `internal/httpserver` helpers (`Serve` / `ServeWithServer` / `RunWithShutdownError`) so startup and shutdown behavior is consistent.
+- Use `github.com/onsi/ginkgo/v2` + `github.com/onsi/gomega` for new test suites and keep `_suite_test.go` bootstrap files in place.
 
 ## What this is
 
@@ -178,8 +192,13 @@ func TestReplayDispatcherHistory(t *testing.T) {
 
 - TDD test-first for workflows and activities. The dispatcher's concurrency cap, pause and
   reconcile logic are unit tests, not things you find out about in production.
+- New workflow-facing tests should use Ginkgo+Gomega (`github.com/onsi/ginkgo/v2`,
+  `github.com/onsi/gomega`) and live in either `package workflows_test` or `package workflows`
+  suites with matching `_suite_test.go` bootstrap files.
 - Done = `golangci-lint` clean and relevant tests pass, verified by running them, not asserted.
 - Never silence a linter. Fix the code.
 - Stop and ask before anything irreversible or outward-facing.
 
-use ./scritps/relase-version.sh v0.1.4 --create-tag to release a new version
+For releases, follow [`docs/releasing.md`](./docs/releasing.md): run `just release`
+from a clean merge-to-main commit, then push the generated tag to start the
+GitHub release workflow.

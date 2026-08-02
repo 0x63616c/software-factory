@@ -3,18 +3,22 @@
 package main
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/0x63616c/software-factory/internal/clock"
 	"github.com/0x63616c/software-factory/internal/config"
+	"github.com/0x63616c/software-factory/internal/httpserver"
 	"github.com/0x63616c/software-factory/internal/relay"
 )
 
@@ -50,23 +54,39 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("listening for relay metrics on %s: %w", cfg.MetricsAddr, err)
 	}
-	go serveMetrics(metricsListener, registry, logger)
 
-	if serveErr := http.Serve(listener, handler); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
-		return fmt.Errorf("serving relay requests: %w", serveErr)
+	relayServer := httpserver.Serve(listener, handler, logger, "relay")
+	metricsServer := httpserver.Serve(metricsListener, metricsHandler(registry), logger, "relay metrics")
+
+	shutdown, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	for {
+		select {
+		case err := <-relayServer.Errors():
+			return fmt.Errorf("serving relay requests: %w", err)
+		case err := <-metricsServer.Errors():
+			return fmt.Errorf("serving relay metrics: %w", err)
+		case <-shutdown.Done():
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := relayServer.Shutdown(ctx); err != nil {
+				return fmt.Errorf("shutting down relay requests: %w", err)
+			}
+			if err := metricsServer.Shutdown(ctx); err != nil {
+				return fmt.Errorf("shutting down relay metrics: %w", err)
+			}
+			return nil
+		}
 	}
-	return nil
 }
 
-func serveMetrics(listener net.Listener, registry *prometheus.Registry, logger *slog.Logger) {
+func metricsHandler(registry *prometheus.Registry) http.Handler {
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-	if err := http.Serve(listener, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/metrics" {
 			writer.WriteHeader(http.StatusNotFound)
 			return
 		}
 		handler.ServeHTTP(writer, request)
-	})); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Error("metrics server stopped", slog.String("error", err.Error()))
-	}
+	})
 }

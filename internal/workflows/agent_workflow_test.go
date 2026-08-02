@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	. "github.com/onsi/ginkgo/v2"
 	"strings"
 	"testing"
 	"time"
@@ -23,12 +24,69 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+var _ = Describe("AgentWorkflow", func() {
+	It("TestAgentWorkflowCompletesFromOneFinalModelTurn", func() {
+		TestAgentWorkflowCompletesFromOneFinalModelTurn(GinkgoT())
+	})
+	It("TestAgentWorkflowClassifiesAnInvalidProviderFinalizationWithoutAResult", func() {
+		TestAgentWorkflowClassifiesAnInvalidProviderFinalizationWithoutAResult(GinkgoT())
+	})
+	It("TestAgentWorkflowUsesTheSuppliedModelTurnPolicy", func() {
+		TestAgentWorkflowUsesTheSuppliedModelTurnPolicy(GinkgoT())
+	})
+	It("TestAgentWorkflowPassesAConversationSeedToPrepare", func() {
+		TestAgentWorkflowPassesAConversationSeedToPrepare(GinkgoT())
+	})
+	It("TestAgentWorkflowReturnsAmbiguousToolFailureWithPartialReferences", func() {
+		TestAgentWorkflowReturnsAmbiguousToolFailureWithPartialReferences(GinkgoT())
+	})
+	It("TestAgentWorkflowResultWireContractFailsClosed", func() {
+		TestAgentWorkflowResultWireContractFailsClosed(GinkgoT())
+	})
+	It("TestAgentWorkflowDistinguishesSessionLossFromAmbiguousToolExecution", func() {
+		TestAgentWorkflowDistinguishesSessionLossFromAmbiguousToolExecution(GinkgoT())
+	})
+	It("TestAgentWorkflowClassifiesTerminalModelActivityFailures", func() {
+		TestAgentWorkflowClassifiesTerminalModelActivityFailures(GinkgoT())
+	})
+	It("TestAgentWorkflowRequestsCancellationOfTheActiveTool", func() {
+		TestAgentWorkflowRequestsCancellationOfTheActiveTool(GinkgoT())
+	})
+	It("TestAgentWorkflowContinuesAsNewWithOnlyReferences", func() {
+		TestAgentWorkflowContinuesAsNewWithOnlyReferences(GinkgoT())
+	})
+	It("TestAgentWorkflowResumesFromReferencesWithoutPreparingAgain", func() {
+		TestAgentWorkflowResumesFromReferencesWithoutPreparingAgain(GinkgoT())
+	})
+	It("TestAgentWorkflowDoesNotStopAtResourceCounts", func() {
+		TestAgentWorkflowDoesNotStopAtResourceCounts(GinkgoT())
+	})
+	It("TestAgentWorkflowExecutesARequestedToolAndContinuesWithItsOutput", func() {
+		TestAgentWorkflowExecutesARequestedToolAndContinuesWithItsOutput(GinkgoT())
+	})
+	It("TestAgentWorkflowRejectsToolsetFingerprintChangeBetweenTurns", func() {
+		TestAgentWorkflowRejectsToolsetFingerprintChangeBetweenTurns(GinkgoT())
+	})
+	It("TestAgentWorkflowRejectsInvalidRunWorkerToolTarget", func() {
+		TestAgentWorkflowRejectsInvalidRunWorkerToolTarget(GinkgoT())
+	})
+	It("TestAgentWorkflowRejectsAnInvalidModelTurnPolicy", func() {
+		TestAgentWorkflowRejectsAnInvalidModelTurnPolicy(GinkgoT())
+	})
+	It("TestAgentWorkflowRejectsAnInvalidControlPolicy", func() {
+		TestAgentWorkflowRejectsAnInvalidControlPolicy(GinkgoT())
+	})
+	It("TestAgentToolActivityOutlivesTheLongestToolCommand", func() {
+		TestAgentToolActivityOutlivesTheLongestToolCommand(GinkgoT())
+	})
+})
+
 const testToolsetFingerprint = "sha256:test-toolset"
 
 const testAgentRunID = "019fb900-0000-7000-8000-000000000001"
 
-func TestAgentWorkflowCompletesFromOneFinalModelTurn(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowCompletesFromOneFinalModelTurn(t testing.TB) {
+	runParallel(t)
 
 	conversationRef := agent.ConversationRef{Key: "conversations/agent/run-7/plan/0/digest", Revision: 0, Bytes: 100, Digest: "digest"}
 	textRef := agent.TextRef{Key: "conversations/agent/run-7/plan/artifacts/text/final", Bytes: 18, Digest: "final"}
@@ -92,8 +150,8 @@ func TestAgentWorkflowCompletesFromOneFinalModelTurn(t *testing.T) {
 	}
 }
 
-func TestAgentWorkflowClassifiesAnInvalidProviderFinalizationWithoutAResult(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowClassifiesAnInvalidProviderFinalizationWithoutAResult(t testing.TB) {
+	runParallel(t)
 
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -127,8 +185,8 @@ func TestAgentWorkflowClassifiesAnInvalidProviderFinalizationWithoutAResult(t *t
 	}
 }
 
-func TestAgentWorkflowUsesTheSuppliedModelTurnPolicy(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowUsesTheSuppliedModelTurnPolicy(t testing.TB) {
+	runParallel(t)
 
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -176,8 +234,8 @@ func TestAgentWorkflowUsesTheSuppliedModelTurnPolicy(t *testing.T) {
 	}
 }
 
-func TestAgentWorkflowPassesAConversationSeedToPrepare(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowPassesAConversationSeedToPrepare(t testing.TB) {
+	runParallel(t)
 
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -213,8 +271,8 @@ func TestAgentWorkflowPassesAConversationSeedToPrepare(t *testing.T) {
 	}
 }
 
-func TestAgentWorkflowReturnsAmbiguousToolFailureWithPartialReferences(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowReturnsAmbiguousToolFailureWithPartialReferences(t testing.TB) {
+	runParallel(t)
 
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -255,8 +313,8 @@ func TestAgentWorkflowReturnsAmbiguousToolFailureWithPartialReferences(t *testin
 	}
 }
 
-func TestAgentWorkflowResultWireContractFailsClosed(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowResultWireContractFailsClosed(t testing.TB) {
+	runParallel(t)
 
 	success := work.NewStageOutput(work.StagePlan, work.DocumentOutput{Document: "the plan"})
 	tests := []struct {
@@ -271,19 +329,18 @@ func TestAgentWorkflowResultWireContractFailsClosed(t *testing.T) {
 		{name: "invalid failure", result: workflows.AgentWorkflowResult{Failure: &agent.TerminalFailure{Kind: "unknown"}}},
 	}
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			data, err := json.Marshal(test.result)
-			if (err == nil) != test.valid {
-				t.Fatalf("Marshal() error = %v, want valid = %t", err, test.valid)
-			}
-			if !test.valid {
-				return
-			}
-			var decoded workflows.AgentWorkflowResult
-			if err := json.Unmarshal(data, &decoded); err != nil {
-				t.Fatalf("Unmarshal() error = %v", err)
-			}
-		})
+		test := test
+		data, err := json.Marshal(test.result)
+		if (err == nil) != test.valid {
+			t.Fatalf("Marshal() error = %v, want valid = %t", err, test.valid)
+		}
+		if !test.valid {
+			return
+		}
+		var decoded workflows.AgentWorkflowResult
+		if err := json.Unmarshal(data, &decoded); err != nil {
+			t.Fatalf("Unmarshal() error = %v", err)
+		}
 	}
 
 	for _, malformed := range []string{
@@ -299,8 +356,8 @@ func TestAgentWorkflowResultWireContractFailsClosed(t *testing.T) {
 	}
 }
 
-func TestAgentWorkflowDistinguishesSessionLossFromAmbiguousToolExecution(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowDistinguishesSessionLossFromAmbiguousToolExecution(t testing.TB) {
+	runParallel(t)
 
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -329,8 +386,8 @@ func TestAgentWorkflowDistinguishesSessionLossFromAmbiguousToolExecution(t *test
 	}
 }
 
-func TestAgentWorkflowClassifiesTerminalModelActivityFailures(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowClassifiesTerminalModelActivityFailures(t testing.TB) {
+	runParallel(t)
 
 	tests := []struct {
 		name string
@@ -342,32 +399,31 @@ func TestAgentWorkflowClassifiesTerminalModelActivityFailures(t *testing.T) {
 		{name: "transient exhausted", err: temporal.NewApplicationError("temporary", agent.ErrorTypeTransient), want: agent.TerminalFailureModelExhausted},
 	}
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			suite := &testsuite.WorkflowTestSuite{}
-			environment := suite.NewTestWorkflowEnvironment()
-			registerAgentLifecycle(environment, nil)
-			environment.RegisterActivityWithOptions(func(context.Context, agentactivities.PrepareInput) (agentactivities.PrepareOutput, error) {
-				return agentactivities.PrepareOutput{ConversationRef: agent.ConversationRef{Revision: 0, Bytes: 10}}, nil
-			}, activity.RegisterOptions{Name: agent.PrepareActivityName})
-			environment.RegisterActivityWithOptions(func(context.Context, agent.ModelTurnInput) (agent.ModelTurnResult, error) {
-				return agent.ModelTurnResult{}, test.err
-			}, activity.RegisterOptions{Name: agent.ModelTurnActivityName})
-			input := validAgentWorkflowInput(work.StageImplement)
-			input.ModelTurnPolicy.Retry.MaximumAttempts = 1
-			environment.ExecuteWorkflow(workflows.AgentWorkflow, input)
-			if err := environment.GetWorkflowError(); err != nil {
-				t.Fatalf("AgentWorkflow error = %v", err)
-			}
-			var result workflows.AgentWorkflowResult
-			if err := environment.GetWorkflowResult(&result); err != nil || result.Failure == nil || !result.Failure.Is(test.want) {
-				t.Fatalf("GetWorkflowResult() error = %v, result = %#v", err, result)
-			}
-		})
+		test := test
+		suite := &testsuite.WorkflowTestSuite{}
+		environment := suite.NewTestWorkflowEnvironment()
+		registerAgentLifecycle(environment, nil)
+		environment.RegisterActivityWithOptions(func(context.Context, agentactivities.PrepareInput) (agentactivities.PrepareOutput, error) {
+			return agentactivities.PrepareOutput{ConversationRef: agent.ConversationRef{Revision: 0, Bytes: 10}}, nil
+		}, activity.RegisterOptions{Name: agent.PrepareActivityName})
+		environment.RegisterActivityWithOptions(func(context.Context, agent.ModelTurnInput) (agent.ModelTurnResult, error) {
+			return agent.ModelTurnResult{}, test.err
+		}, activity.RegisterOptions{Name: agent.ModelTurnActivityName})
+		input := validAgentWorkflowInput(work.StageImplement)
+		input.ModelTurnPolicy.Retry.MaximumAttempts = 1
+		environment.ExecuteWorkflow(workflows.AgentWorkflow, input)
+		if err := environment.GetWorkflowError(); err != nil {
+			t.Fatalf("AgentWorkflow error = %v", err)
+		}
+		var result workflows.AgentWorkflowResult
+		if err := environment.GetWorkflowResult(&result); err != nil || result.Failure == nil || !result.Failure.Is(test.want) {
+			t.Fatalf("GetWorkflowResult() error = %v, result = %#v", err, result)
+		}
 	}
 }
 
-func TestAgentWorkflowRequestsCancellationOfTheActiveTool(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowRequestsCancellationOfTheActiveTool(t testing.TB) {
+	runParallel(t)
 
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -407,8 +463,8 @@ func TestAgentWorkflowRequestsCancellationOfTheActiveTool(t *testing.T) {
 	}
 }
 
-func TestAgentWorkflowContinuesAsNewWithOnlyReferences(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowContinuesAsNewWithOnlyReferences(t testing.TB) {
+	runParallel(t)
 
 	const conversationBody = "large-conversation-content-must-not-enter-the-continuation-payload"
 	initial := agent.ConversationRef{Key: "conversations/run-7/0", Revision: 0, Bytes: 100, Digest: "initial"}
@@ -496,8 +552,8 @@ func TestAgentWorkflowContinuesAsNewWithOnlyReferences(t *testing.T) {
 	}
 }
 
-func TestAgentWorkflowResumesFromReferencesWithoutPreparingAgain(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowResumesFromReferencesWithoutPreparingAgain(t testing.TB) {
+	runParallel(t)
 
 	conversation := agent.ConversationRef{Key: "conversations/run-7/2", Revision: 2, Bytes: 300, Digest: "continued"}
 	textRef := agent.TextRef{Key: "conversations/run-7/final", Bytes: 20, Digest: "final"}
@@ -535,8 +591,8 @@ func TestAgentWorkflowResumesFromReferencesWithoutPreparingAgain(t *testing.T) {
 	}
 }
 
-func TestAgentWorkflowDoesNotStopAtResourceCounts(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowDoesNotStopAtResourceCounts(t testing.TB) {
+	runParallel(t)
 
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -579,8 +635,8 @@ func TestAgentWorkflowDoesNotStopAtResourceCounts(t *testing.T) {
 	}
 }
 
-func TestAgentWorkflowExecutesARequestedToolAndContinuesWithItsOutput(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowExecutesARequestedToolAndContinuesWithItsOutput(t testing.TB) {
+	runParallel(t)
 
 	initial := agent.ConversationRef{Key: "conversations/agent/run-7/implement/1/0/initial", Revision: 0, Bytes: 100, Digest: "initial"}
 	requested := agent.ConversationRef{Key: "conversations/agent/run-7/implement/1/1/requested", Revision: 1, Bytes: 100, Digest: "requested"}
@@ -642,8 +698,8 @@ func TestAgentWorkflowExecutesARequestedToolAndContinuesWithItsOutput(t *testing
 	}
 }
 
-func TestAgentWorkflowRejectsToolsetFingerprintChangeBetweenTurns(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowRejectsToolsetFingerprintChangeBetweenTurns(t testing.TB) {
+	runParallel(t)
 
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -691,8 +747,8 @@ func TestAgentWorkflowRejectsToolsetFingerprintChangeBetweenTurns(t *testing.T) 
 	}
 }
 
-func TestAgentWorkflowRejectsInvalidRunWorkerToolTarget(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowRejectsInvalidRunWorkerToolTarget(t testing.TB) {
+	runParallel(t)
 
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -709,8 +765,8 @@ func TestAgentWorkflowRejectsInvalidRunWorkerToolTarget(t *testing.T) {
 	}
 }
 
-func TestAgentWorkflowRejectsAnInvalidModelTurnPolicy(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowRejectsAnInvalidModelTurnPolicy(t testing.TB) {
+	runParallel(t)
 
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -724,8 +780,8 @@ func TestAgentWorkflowRejectsAnInvalidModelTurnPolicy(t *testing.T) {
 	}
 }
 
-func TestAgentWorkflowRejectsAnInvalidControlPolicy(t *testing.T) {
-	t.Parallel()
+func TestAgentWorkflowRejectsAnInvalidControlPolicy(t testing.TB) {
+	runParallel(t)
 
 	suite := &testsuite.WorkflowTestSuite{}
 	environment := suite.NewTestWorkflowEnvironment()
@@ -739,13 +795,19 @@ func TestAgentWorkflowRejectsAnInvalidControlPolicy(t *testing.T) {
 	}
 }
 
-func TestAgentToolActivityOutlivesTheLongestToolCommand(t *testing.T) {
+func TestAgentToolActivityOutlivesTheLongestToolCommand(t testing.TB) {
 	got := workflows.AgentToolActivityOptionsForTest().StartToCloseTimeout
 	if got <= agent.MaxToolExecutionDuration {
 		t.Fatalf("tool activity timeout = %s, must exceed command timeout %s so completion can be persisted", got, agent.MaxToolExecutionDuration)
 	}
 	if got != 31*time.Minute {
 		t.Fatalf("tool activity timeout = %s, want the 30 minute command bound plus persistence margin", got)
+	}
+}
+
+func runParallel(t testing.TB) {
+	if p, ok := t.(interface{ Parallel() }); ok {
+		p.Parallel()
 	}
 }
 

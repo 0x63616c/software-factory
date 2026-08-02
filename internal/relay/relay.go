@@ -8,7 +8,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -19,6 +18,9 @@ import (
 
 	"github.com/0x63616c/software-factory/internal/clock"
 	"github.com/0x63616c/software-factory/internal/config"
+	"github.com/0x63616c/software-factory/internal/retry"
+
+	"github.com/cockroachdb/errors"
 )
 
 const (
@@ -27,7 +29,11 @@ const (
 	attemptTimeout = 5 * time.Second
 )
 
-var retryDelays = []time.Duration{time.Second, 2 * time.Second}
+var relayRetryPolicy = retry.Policy{
+	InitialDelay: 1 * time.Second,
+	Multiplier:   2,
+	MaxDelay:     2 * time.Second,
+}
 
 // Poster sends one already-authenticated delivery to a configured consumer.
 // It returns only the response status that controls retrying, sealing net/http
@@ -122,7 +128,7 @@ func (h *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (h *Handler) forward(ctx context.Context, target config.RelayTarget, delivery Delivery) {
-	for attempt := range maxAttempts {
+	if err := retry.Retry(ctx, h.clock, maxAttempts, relayRetryPolicy, func(_ context.Context, attempt int) (bool, error) {
 		attemptContext, cancel := context.WithTimeout(ctx, attemptTimeout)
 		startedAt := h.clock.Now()
 		status, err := h.poster.Post(attemptContext, target, delivery)
@@ -138,18 +144,19 @@ func (h *Handler) forward(ctx context.Context, target config.RelayTarget, delive
 
 		if err == nil {
 			if status < http.StatusBadRequest {
-				return
+				return false, nil
 			}
 			if status < http.StatusInternalServerError {
-				break
+				return false, nil
 			}
 		}
+
 		if attempt == maxAttempts-1 {
-			break
+			return false, err
 		}
-		if sleepErr := h.clock.Sleep(ctx, retryDelays[attempt]); sleepErr != nil {
-			return
-		}
+		return true, err
+	}); err == nil {
+		return
 	}
 
 	h.metrics.givenUp.WithLabelValues(target.Name).Inc()
@@ -221,7 +228,7 @@ func NewHTTPPoster(client *http.Client) *HTTPPoster {
 func (p *HTTPPoster) Post(ctx context.Context, target config.RelayTarget, delivery Delivery) (int, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, target.URL, bytes.NewReader(delivery.Body))
 	if err != nil {
-		return 0, fmt.Errorf("creating request for target %s delivery %s: %w", target.Name, delivery.DeliveryID, err)
+		return 0, errors.Wrapf(err, "creating request for target %s delivery %s", target.Name, delivery.DeliveryID)
 	}
 	request.Header.Set("x-hub-signature-256", delivery.Signature)
 	request.Header.Set("x-github-delivery", delivery.DeliveryID)
@@ -231,11 +238,11 @@ func (p *HTTPPoster) Post(ctx context.Context, target config.RelayTarget, delive
 
 	response, err := p.client.Do(request)
 	if err != nil {
-		return 0, fmt.Errorf("posting target %s delivery %s: %w", target.Name, delivery.DeliveryID, err)
+		return 0, errors.Wrapf(err, "posting target %s delivery %s", target.Name, delivery.DeliveryID)
 	}
 	status := response.StatusCode
 	if closeErr := response.Body.Close(); closeErr != nil {
-		return 0, fmt.Errorf("closing response for target %s delivery %s: %w", target.Name, delivery.DeliveryID, closeErr)
+		return 0, errors.Wrapf(closeErr, "closing response for target %s delivery %s", target.Name, delivery.DeliveryID)
 	}
 	return status, nil
 }

@@ -13,10 +13,10 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/0x63616c/software-factory/internal/blobs"
 	"github.com/0x63616c/software-factory/internal/config"
+	"github.com/0x63616c/software-factory/internal/httpserver"
 )
 
 const maxBlobSize int64 = 64 << 20
@@ -44,26 +44,12 @@ func run() error {
 	}
 	logger.Info("blob service starting", slog.String("address", cfg.ListenAddr), slog.String("root", cfg.Root))
 
-	server := &http.Server{
-		Handler:           newHandler(store, cfg.Root, logger),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-	serveErr := make(chan error, 1)
-	go func() { serveErr <- server.Serve(listener) }()
+	handler := newHandler(store, cfg.Root, logger)
 
 	shutdown, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	select {
-	case err := <-serveErr:
-		if !errors.Is(err, http.ErrServerClosed) {
-			return fmt.Errorf("serving blob requests: %w", err)
-		}
-	case <-shutdown.Done():
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			return fmt.Errorf("shutting down blob server: %w", err)
-		}
+	if err := httpserver.RunWithShutdownError(shutdown, listener, handler, logger, "blob service"); err != nil {
+		return fmt.Errorf("serving blob requests: %w", err)
 	}
 	return nil
 }

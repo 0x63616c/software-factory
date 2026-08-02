@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -12,13 +11,13 @@ import (
 	"os/signal"
 	"slices"
 	"syscall"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/0x63616c/software-factory/internal/blobs"
 	"github.com/0x63616c/software-factory/internal/clock"
 	"github.com/0x63616c/software-factory/internal/config"
+	"github.com/0x63616c/software-factory/internal/httpserver"
 	"github.com/0x63616c/software-factory/internal/payloads"
 	"github.com/0x63616c/software-factory/internal/telemetry"
 )
@@ -56,26 +55,12 @@ func run() error {
 	}
 	logger.Info("codec service starting", slog.String("address", cfg.ListenAddr), slog.String("blobs_url", cfg.BlobsURL))
 
-	server := &http.Server{
-		Handler:           newHandler(store, cfg.CORSOrigins, logger),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-	serveErr := make(chan error, 1)
-	go func() { serveErr <- server.Serve(listener) }()
+	handler := newHandler(store, cfg.CORSOrigins, logger)
 
 	shutdown, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	select {
-	case err := <-serveErr:
-		if !errors.Is(err, http.ErrServerClosed) {
-			return fmt.Errorf("serving codec requests: %w", err)
-		}
-	case <-shutdown.Done():
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			return fmt.Errorf("shutting down codec server: %w", err)
-		}
+	if err := httpserver.RunWithShutdownError(shutdown, listener, handler, logger, "codec service"); err != nil {
+		return fmt.Errorf("serving codec requests: %w", err)
 	}
 	return nil
 }

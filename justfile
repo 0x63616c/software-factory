@@ -40,5 +40,5 @@ scenario-replay TRACE:
 release-check VERSION:
     ./scripts/release-check.sh "{{VERSION}}"
 
-release-version VERSION:
-    ./scripts/release-version.sh "{{VERSION}}"
+release:
+    ./scripts/release-version.sh --create-tag

@@ -1,36 +1,27 @@
 package workflows
 
 import (
-	"testing"
-
 	"github.com/0x63616c/software-factory/internal/store"
 	"github.com/0x63616c/software-factory/internal/work"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	enums "go.temporal.io/api/enums/v1"
 )
 
-func TestDispatchWaitActivityOptionsLeaveIdleRetriesOutsideWorkflowHistory(t *testing.T) {
-	options := dispatchWaitActivityOptions(work.DefaultDispatcherPolicy().Run.Recording)
-	if options.ScheduleToCloseTimeout != 0 {
-		t.Errorf("ScheduleToCloseTimeout = %s, want no bound so Temporal owns no-work retry cadence", options.ScheduleToCloseTimeout)
-	}
-	if options.RetryPolicy == nil || options.RetryPolicy.MaximumAttempts != 0 {
-		t.Errorf("RetryPolicy = %+v, want unlimited retrying wait", options.RetryPolicy)
-	}
-}
+var _ = Describe("dispatcher activity options", func() {
+	It("leaves wait retries outside workflow history", func() {
+		options := dispatchWaitActivityOptions(work.DefaultDispatcherPolicy().Run.Recording)
+		Expect(options.ScheduleToCloseTimeout).To(BeZero(), "ScheduleToCloseTimeout = %s, want no bound so Temporal owns no-work retry cadence", options.ScheduleToCloseTimeout)
+		Expect(options.RetryPolicy).NotTo(BeNil(), "RetryPolicy must exist")
+		Expect(options.RetryPolicy.MaximumAttempts).To(Equal(int32(0)), "RetryPolicy = %+v, want unlimited retrying wait", options.RetryPolicy)
+	})
 
-func TestDispatchChildOptionsRequestCancellationWhenTheDispatcherCloses(t *testing.T) {
-	policy := work.DefaultTargetRunPolicy()
-	options := dispatchChildWorkflowOptions(store.TicketID(41), policy)
-	if options.WorkflowID != work.TicketWorkflowID(41) {
-		t.Errorf("WorkflowID = %q, want ticket-scoped target workflow ID", options.WorkflowID)
-	}
-	if options.TaskQueue != work.TaskQueue {
-		t.Errorf("TaskQueue = %q, want the target run queue %q", options.TaskQueue, work.TaskQueue)
-	}
-	if options.WorkflowExecutionTimeout != policy.HardDeadline {
-		t.Errorf("WorkflowExecutionTimeout = %s, want immutable policy hard deadline %s", options.WorkflowExecutionTimeout, policy.HardDeadline)
-	}
-	if options.ParentClosePolicy != enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL {
-		t.Errorf("ParentClosePolicy = %s, want request cancellation", options.ParentClosePolicy)
-	}
-}
+	It("requests cancellation when dispatcher closes", func() {
+		policy := work.DefaultTargetRunPolicy()
+		options := dispatchChildWorkflowOptions(store.TicketID(41), policy)
+		Expect(options.WorkflowID).To(Equal(work.TicketWorkflowID(41)), "WorkflowID = %q, want ticket-scoped target workflow ID", options.WorkflowID)
+		Expect(options.TaskQueue).To(Equal(work.TaskQueue), "TaskQueue = %q, want the target run queue %q", options.TaskQueue)
+		Expect(options.WorkflowExecutionTimeout).To(Equal(policy.HardDeadline), "WorkflowExecutionTimeout = %s, want immutable policy hard deadline %s", options.WorkflowExecutionTimeout, policy.HardDeadline)
+		Expect(options.ParentClosePolicy).To(Equal(enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL), "ParentClosePolicy = %s, want request cancellation", options.ParentClosePolicy)
+	})
+})

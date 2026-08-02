@@ -15,15 +15,23 @@ not publish a unified `sf` binary and does not create moving `latest`, `v0`, or
 2. From a clean checkout of that commit, run:
 
    ```bash
-   just release-check VERSION=v0.1.0
-   scripts/release-version.sh v0.1.0 --create-tag
+   just release
    ```
 
-3. Create and push the exact tag:
+   Codex inspects the Conventional Commit subjects since the latest reachable
+   SemVer tag, all local and remote tags, and GitHub Release records. It selects
+   the next version and writes the release notes into the annotated local tag.
+   The script validates the structured decision before creating the tag.
+
+3. Inspect and push the exact tag reported by `just release`:
 
    ```bash
-   scripts/release-version.sh v0.1.0 --push-tag
+   git push origin v0.1.0
    ```
+
+   Replace `v0.1.0` with the version selected in the preceding command. Pushing
+   the tag starts the release workflow; it publishes the annotation as the
+   GitHub Release notes. `just release` deliberately does not push.
 
 The tag-triggered release workflow verifies that the commit belongs to `main`,
 re-runs `verify`, the real Temporal Session integration, and deterministic E2E,
