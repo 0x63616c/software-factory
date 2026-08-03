@@ -10,8 +10,15 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/0x63616c/software-factory/internal/clock/clocktest"
 	"github.com/0x63616c/software-factory/internal/sf"
 )
+
+var testStart = time.Date(2026, time.August, 3, 12, 0, 0, 0, time.UTC)
+
+func newTestModel(actions *sf.Actions) model {
+	return newModel(actions, time.Second, time.Second, clocktest.NewFake(testStart))
+}
 
 func newTestActionsFromServer(t *testing.T, server *httptest.Server) *sf.Actions {
 	client, err := sf.NewClient(server.URL, sf.Credentials{BearerToken: "token"}, 10*time.Second, &http.Client{})
@@ -22,7 +29,7 @@ func newTestActionsFromServer(t *testing.T, server *httptest.Server) *sf.Actions
 }
 
 func TestTUIHelpOverlayCloseOnAnyKey(t *testing.T) {
-	m := newModel(nil, time.Second, time.Second)
+	m := newTestModel(nil)
 	m.width = 80
 	m.height = 20
 
@@ -46,7 +53,7 @@ func TestTUIHelpOverlayCloseOnAnyKey(t *testing.T) {
 }
 
 func TestTUIQuitConfirmationFlow(t *testing.T) {
-	m := newModel(nil, time.Second, time.Second)
+	m := newTestModel(nil)
 
 	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	afterFirst := next.(model)
@@ -68,10 +75,12 @@ func TestTUIQuitConfirmationFlow(t *testing.T) {
 }
 
 func TestTUIQuitConfirmationTimeout(t *testing.T) {
-	m := newModel(nil, time.Second, time.Second)
+	clk := clocktest.NewFake(testStart)
+	m := newModel(nil, time.Second, time.Second, clk)
 	m.quitConfirm = true
-	m.quitUntil = time.Now().Add(-time.Second)
+	m.quitUntil = clk.Now().Add(time.Second)
 	m.footer = "Press again to quit"
+	clk.Advance(2 * time.Second)
 
 	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	after := next.(model)
@@ -89,8 +98,33 @@ func TestTUIQuitConfirmationTimeout(t *testing.T) {
 	}
 }
 
+func TestTUIKeepsNonRuneKeysAsNoOpsInNormalMode(t *testing.T) {
+	m := newTestModel(nil)
+	m.tickets = []sf.TicketSummary{{ID: 1}, {ID: 2}}
+	m.applyFilter()
+
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if got := next.(model).selected; got != 0 {
+		t.Fatalf("selection after non-rune down key = %d, want unchanged", got)
+	}
+}
+
+func TestTUIMultiRuneTextDoesNotBecomeAControlKey(t *testing.T) {
+	m := newTestModel(nil)
+	m.mode = modeCommand
+
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("enter")})
+	got := next.(model)
+	if got.mode != modeCommand {
+		t.Fatalf("mode after multi-rune text = %v, want command mode", got.mode)
+	}
+	if got.inputText != "" {
+		t.Fatalf("input after multi-rune text = %q, want unchanged", got.inputText)
+	}
+}
+
 func TestTUIInvalidSetStateShowsError(t *testing.T) {
-	m := newModel(nil, time.Second, time.Second)
+	m := newTestModel(nil)
 	m.tickets = []sf.TicketSummary{{ID: 10, Title: "sample"}}
 	m.applyFilter()
 
@@ -125,7 +159,7 @@ func TestTUIWorkDispatchesAction(t *testing.T) {
 	defer server.Close()
 
 	actions := newTestActionsFromServer(t, server)
-	m := newModel(actions, time.Second, time.Second)
+	m := newTestModel(actions)
 	m.tickets = []sf.TicketSummary{{ID: 55, Title: "sample"}}
 	m.applyFilter()
 
@@ -176,7 +210,7 @@ func TestTUICommandModePauseAndMaxInFlight(t *testing.T) {
 	defer server.Close()
 
 	actions := newTestActionsFromServer(t, server)
-	m := newModel(actions, time.Second, time.Second)
+	m := newTestModel(actions)
 
 	// Open command mode and dispatch :pause.
 	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(":")})
@@ -184,12 +218,12 @@ func TestTUICommandModePauseAndMaxInFlight(t *testing.T) {
 	if commandMode.mode != modeCommand {
 		t.Fatalf("expected command mode")
 	}
-	next, cmd := commandMode.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("u")})
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("e")})
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, _ = commandMode.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
+	next, _ = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	next, _ = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("u")})
+	next, _ = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	next, _ = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("e")})
+	next, cmd := next.(model).Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd == nil {
 		t.Fatalf("expected action command for :pause")
 	}
@@ -202,7 +236,7 @@ func TestTUICommandModePauseAndMaxInFlight(t *testing.T) {
 	}
 
 	// Open command mode and set max-in-flight.
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(":")})
+	next, _ = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(":")})
 	commandMode = next.(model)
 	if commandMode.mode != modeCommand {
 		t.Fatalf("expected command mode for set-max command")
@@ -221,7 +255,7 @@ func TestTUICommandModePauseAndMaxInFlight(t *testing.T) {
 }
 
 func TestTUIFilterMode(t *testing.T) {
-	m := newModel(nil, time.Second, time.Second)
+	m := newTestModel(nil)
 	m.tickets = []sf.TicketSummary{
 		{ID: 1, Title: "build queue"},
 		{ID: 2, Title: "alpha ticket"},
