@@ -3,6 +3,7 @@ package sf
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -101,8 +102,8 @@ func TestListTicketsBuildsExpectedQuery(t *testing.T) {
 
 func TestParseErrorResponseMapsToReason(t *testing.T) {
 	statusText := parseErrorResponse(http.StatusConflict, []byte(`{"reason":"conflict","detail":"already exists"}`))
-	parsed, ok := statusText.(APIError)
-	if !ok {
+	var parsed APIError
+	if !errors.As(statusText, &parsed) {
 		t.Fatalf("expected APIError, got %T", statusText)
 	}
 	if parsed.Reason != "conflict" {
@@ -115,8 +116,8 @@ func TestParseErrorResponseMapsToReason(t *testing.T) {
 
 func TestParseErrorResponsePreservesBackendReasonForMachine(t *testing.T) {
 	statusText := parseErrorResponse(http.StatusBadRequest, []byte(`{"reason":"illegal_transition","detail":"cannot move from active to open"}`))
-	parsed, ok := statusText.(APIError)
-	if !ok {
+	var parsed APIError
+	if !errors.As(statusText, &parsed) {
 		t.Fatalf("expected APIError, got %T", statusText)
 	}
 	if parsed.Reason != "illegal_transition" {

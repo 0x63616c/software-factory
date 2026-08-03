@@ -1,3 +1,4 @@
+// Package tui provides the interactive Software Factory terminal client.
 package tui
 
 import (
@@ -12,6 +13,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/0x63616c/software-factory/internal/clock"
 	"github.com/0x63616c/software-factory/internal/sf"
 )
 
@@ -29,6 +31,7 @@ type model struct {
 	actions      *sf.Actions
 	timeout      time.Duration
 	pollInterval time.Duration
+	clock        clock.Clock
 	width        int
 	height       int
 
@@ -50,8 +53,8 @@ type model struct {
 }
 
 const (
-	defaultFooter      = "h help | ^C quit"
-	quitConfirmWindow  = 2 * time.Second
+	defaultFooter     = "h help | ^C quit"
+	quitConfirmWindow = 2 * time.Second
 )
 
 type snapshotMsg struct {
@@ -72,12 +75,13 @@ type actionMsg struct {
 
 type tickMsg struct{}
 
+// Run starts the interactive terminal client until the user quits or it fails.
 func Run(actions *sf.Actions, pollInterval time.Duration, timeout time.Duration, output io.Writer) error {
 	if output == nil {
 		output = os.Stdout
 	}
 	program := tea.NewProgram(
-		newModel(actions, pollInterval, timeout),
+		newModel(actions, pollInterval, timeout, clock.System{}),
 		tea.WithInput(os.Stdin),
 		tea.WithOutput(output),
 		tea.WithAltScreen(),
@@ -86,11 +90,12 @@ func Run(actions *sf.Actions, pollInterval time.Duration, timeout time.Duration,
 	return err
 }
 
-func newModel(actions *sf.Actions, pollInterval, timeout time.Duration) model {
+func newModel(actions *sf.Actions, pollInterval, timeout time.Duration, clk clock.Clock) model {
 	return model{
 		actions:      actions,
 		timeout:      timeout,
 		pollInterval: pollInterval,
+		clock:        clk,
 		footer:       defaultFooter,
 	}
 }
@@ -143,7 +148,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 	case tickMsg:
-		if m.quitConfirm && !m.quitUntil.IsZero() && time.Now().After(m.quitUntil) {
+		if m.quitConfirm && !m.quitUntil.IsZero() && m.clock.Now().After(m.quitUntil) {
 			m.quitConfirm = false
 			m.footer = defaultFooter
 		}
@@ -220,7 +225,7 @@ func (m *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 
 	if m.quitConfirm {
-		if !m.quitUntil.IsZero() && time.Now().After(m.quitUntil) {
+		if !m.quitUntil.IsZero() && m.clock.Now().After(m.quitUntil) {
 			m.quitConfirm = false
 			m.footer = defaultFooter
 		} else if msg.String() == "ctrl+c" {
@@ -233,111 +238,119 @@ func (m *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return nil
 	}
 
-	switch msg.Type {
-	case tea.KeyCtrlC:
+	if msg.Type == tea.KeyCtrlC {
 		m.quitConfirm = true
-		m.quitUntil = time.Now().Add(quitConfirmWindow)
+		m.quitUntil = m.clock.Now().Add(quitConfirmWindow)
 		m.footer = "Press again to quit"
-	case tea.KeyRunes:
-		switch msg.String() {
-		case "h", "?":
-			m.mode = modeHelp
-			m.footer = "press any key to return"
-		case "r", "R":
-			m.loading = true
-			m.footer = "refreshing..."
-			return fetchSnapshot(m.actions, m.timeout)
-		case "j", "down":
-			m.selected = min(len(m.filtered)-1, m.selected+1)
-			m.selectedRunID = ""
-			return fetchTicketDetails(m.actions, m.timeout, m.selectedTicketID())
-		case "k", "up":
-			m.selected = max(0, m.selected-1)
-			m.selectedRunID = ""
-			return fetchTicketDetails(m.actions, m.timeout, m.selectedTicketID())
-		case "w":
-			ticketID, ok := m.selectedTicketIDBool()
-			if !ok {
-				m.footer = "no ticket selected"
-				return nil
-			}
-			return action("work requested for ticket "+fmt.Sprint(ticketID), func(ctx context.Context) error {
-				return m.actions.WorkTicket(ctx, ticketID)
-			}, m.timeout)
-		case "c":
-			ticketID, ok := m.selectedTicketIDBool()
-			if !ok {
-				m.footer = "no ticket selected"
-				return nil
-			}
-			return action("cancel requested for ticket "+fmt.Sprint(ticketID), func(ctx context.Context) error {
-				return m.actions.CancelTicket(ctx, ticketID)
-			}, m.timeout)
-		case "/":
-			m.mode = modeFilter
-			m.inputText = m.filterTerm
-			m.footer = "filter: /" + m.inputText
-		case ":":
-			m.mode = modeCommand
-			m.inputText = ""
-			m.footer = ":"
-		case "s":
-			if _, ok := m.selectedTicketIDBool(); !ok {
-				m.footer = "no ticket selected"
-				return nil
-			}
-			m.mode = modeSetState
-			m.inputText = ""
-			m.footer = "state [open|active|failed|done]: "
-		}
-	default:
+		return nil
+	}
+	if msg.Type != tea.KeyRunes {
 		if m.footer == "" {
 			m.footer = defaultFooter
 		}
+		return nil
+	}
+
+	switch msg.String() {
+	case "h", "?":
+		m.mode = modeHelp
+		m.footer = "press any key to return"
+	case "r", "R":
+		m.loading = true
+		m.footer = "refreshing..."
+		return fetchSnapshot(m.actions, m.timeout)
+	case "j", "down":
+		m.selected = min(len(m.filtered)-1, m.selected+1)
+		m.selectedRunID = ""
+		return fetchTicketDetails(m.actions, m.timeout, m.selectedTicketID())
+	case "k", "up":
+		m.selected = max(0, m.selected-1)
+		m.selectedRunID = ""
+		return fetchTicketDetails(m.actions, m.timeout, m.selectedTicketID())
+	case "w":
+		ticketID, ok := m.selectedTicketIDBool()
+		if !ok {
+			m.footer = "no ticket selected"
+			return nil
+		}
+		return action("work requested for ticket "+fmt.Sprint(ticketID), func(ctx context.Context) error {
+			return m.actions.WorkTicket(ctx, ticketID)
+		}, m.timeout)
+	case "c":
+		ticketID, ok := m.selectedTicketIDBool()
+		if !ok {
+			m.footer = "no ticket selected"
+			return nil
+		}
+		return action("cancel requested for ticket "+fmt.Sprint(ticketID), func(ctx context.Context) error {
+			return m.actions.CancelTicket(ctx, ticketID)
+		}, m.timeout)
+	case "/":
+		m.mode = modeFilter
+		m.inputText = m.filterTerm
+		m.footer = "filter: /" + m.inputText
+	case ":":
+		m.mode = modeCommand
+		m.inputText = ""
+		m.footer = ":"
+	case "s":
+		if _, ok := m.selectedTicketIDBool(); !ok {
+			m.footer = "no ticket selected"
+			return nil
+		}
+		m.mode = modeSetState
+		m.inputText = ""
+		m.footer = "state [open|active|failed|done]: "
 	}
 	return nil
 }
 
 func (m *model) handleFilterMode(msg tea.KeyMsg) tea.Cmd {
-	switch msg.Type {
-	case tea.KeyBackspace, tea.KeyDelete:
+	if msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete {
 		if len(m.inputText) > 0 {
 			m.inputText = m.inputText[:len(m.inputText)-1]
 		}
 		m.footer = "filter: /" + m.inputText
 		m.filterTerm = m.inputText
 		m.applyFilter()
-	case tea.KeyEsc:
+		return nil
+	}
+	if msg.Type == tea.KeyEsc {
 		m.mode = modeNormal
 		m.inputText = ""
 		m.footer = defaultFooter
-	case tea.KeyEnter:
+		return nil
+	}
+	if msg.Type == tea.KeyEnter {
 		m.mode = modeNormal
 		m.filterTerm = strings.TrimSpace(m.inputText)
 		m.applyFilter()
 		m.footer = defaultFooter
-	default:
-		if len(msg.String()) == 1 {
-			m.appendInput(msg)
-			m.footer = "filter: /" + m.inputText
-			m.filterTerm = m.inputText
-			m.applyFilter()
-		}
+		return nil
+	}
+	if len(msg.String()) == 1 {
+		m.appendInput(msg)
+		m.footer = "filter: /" + m.inputText
+		m.filterTerm = m.inputText
+		m.applyFilter()
 	}
 	return nil
 }
 
 func (m *model) handleCommandMode(msg tea.KeyMsg) tea.Cmd {
-	switch msg.Type {
-	case tea.KeyBackspace, tea.KeyDelete:
+	if msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete {
 		if len(m.inputText) > 0 {
 			m.inputText = m.inputText[:len(m.inputText)-1]
 		}
 		m.footer = ":" + m.inputText
-	case tea.KeyEsc:
+		return nil
+	}
+	if msg.Type == tea.KeyEsc {
 		m.mode = modeNormal
 		m.footer = defaultFooter
-	case tea.KeyEnter:
+		return nil
+	}
+	if msg.Type == tea.KeyEnter {
 		m.mode = modeNormal
 		m.footer = defaultFooter
 		raw := strings.TrimSpace(m.inputText)
@@ -346,27 +359,29 @@ func (m *model) handleCommandMode(msg tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		return m.runCommand(raw)
-	default:
-		if len(msg.String()) == 1 {
-			m.appendInput(msg)
-			m.footer = ":" + m.inputText
-		}
+	}
+	if len(msg.String()) == 1 {
+		m.appendInput(msg)
+		m.footer = ":" + m.inputText
 	}
 	return nil
 }
 
 func (m *model) handleSetStateMode(msg tea.KeyMsg) tea.Cmd {
-	switch msg.Type {
-	case tea.KeyBackspace, tea.KeyDelete:
+	if msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete {
 		if len(m.inputText) > 0 {
 			m.inputText = m.inputText[:len(m.inputText)-1]
 		}
 		m.footer = "state [open|active|failed|done]: " + m.inputText
-	case tea.KeyEsc:
+		return nil
+	}
+	if msg.Type == tea.KeyEsc {
 		m.mode = modeNormal
 		m.inputText = ""
 		m.footer = defaultFooter
-	case tea.KeyEnter:
+		return nil
+	}
+	if msg.Type == tea.KeyEnter {
 		state := strings.ToLower(strings.TrimSpace(m.inputText))
 		m.mode = modeNormal
 		m.inputText = ""
@@ -388,11 +403,10 @@ func (m *model) handleSetStateMode(msg tea.KeyMsg) tea.Cmd {
 			_, err := m.actions.SetTicketState(ctx, ticketID, state)
 			return err
 		}, m.timeout)
-	default:
-		if len(msg.String()) == 1 {
-			m.appendInput(msg)
-			m.footer = "state [open|active|failed|done]: " + m.inputText
-		}
+	}
+	if len(msg.String()) == 1 {
+		m.appendInput(msg)
+		m.footer = "state [open|active|failed|done]: " + m.inputText
 	}
 	return nil
 }

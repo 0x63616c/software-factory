@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -40,7 +41,8 @@ func sfExitCodeOrDefault(err error, fallback int) int {
 	if err == nil {
 		return 0
 	}
-	if apiErr, ok := err.(sf.APIError); ok {
+	var apiErr sf.APIError
+	if errors.As(err, &apiErr) {
 		return sf.ExitCode(apiErr)
 	}
 	return fallback
@@ -184,7 +186,8 @@ func withRuntime(cmd *cobra.Command, fn func(context.Context, *sfRuntime) error)
 }
 
 func writeError(writer io.Writer, err error) error {
-	if apiErr, ok := err.(sf.APIError); ok {
+	var apiErr sf.APIError
+	if errors.As(err, &apiErr) {
 		if apiErr.Reason != "" {
 			_, writeErr := fmt.Fprintf(writer, "sf %s: %v\n", apiErr.Reason, apiErr.Detail)
 			if writeErr != nil {
@@ -214,10 +217,6 @@ func parseIntArg(raw string, field string) (int, error) {
 		return 0, fmt.Errorf("parse %s %q: %w", field, raw, err)
 	}
 	return value, nil
-}
-
-func normalizeFlagValue(raw string) string {
-	return strings.ToLower(strings.TrimSpace(raw))
 }
 
 func resolveOutputFormat(base sf.OutputFormat, useJSON bool, useYAML bool, useWide bool) (sf.OutputFormat, error) {
