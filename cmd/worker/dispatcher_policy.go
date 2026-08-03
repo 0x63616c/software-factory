@@ -48,6 +48,14 @@ func defaultDispatcherPolicyPublicationRequest(requestID string) dispatcherPolic
 	return dispatcherPolicyPublicationRequest{RequestID: requestID, Fingerprint: fingerprint, Policy: policy}
 }
 
+// deployedDispatcherPolicyPublicationRequest scopes Temporal's idempotency key
+// to one CI deployment while leaving the fingerprint as policy content identity.
+func deployedDispatcherPolicyPublicationRequest(deployID string) dispatcherPolicyPublicationRequest {
+	request := defaultDispatcherPolicyPublicationRequest("pending")
+	request.RequestID = "startup-" + deployID + "-" + request.Fingerprint
+	return request
+}
+
 // ensureTargetDispatcherPolicy is the startup gate for the inactive target
 // path. Only an acknowledged APPLIED or ALREADY_CURRENT response permits a
 // caller to start polling a main task queue.

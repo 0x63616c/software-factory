@@ -93,3 +93,24 @@ func TestDispatcherPolicyPublicationCarriesAnImmutableResolvedPolicy(t *testing.
 		t.Fatalf("published fingerprint = %q, want resolved default %q", request.Fingerprint, want)
 	}
 }
+
+func TestDeploymentScopesDispatcherPolicyPublicationIdentity(t *testing.T) {
+	t.Parallel()
+
+	first := deployedDispatcherPolicyPublicationRequest("1785790005-1")
+	retry := deployedDispatcherPolicyPublicationRequest("1785790005-1")
+	later := deployedDispatcherPolicyPublicationRequest("1785790005-2")
+	want := "startup-1785790005-1-" + first.Fingerprint
+	if first.RequestID != want {
+		t.Fatalf("first deployment request ID = %q, want %q", first.RequestID, want)
+	}
+	if retry.RequestID != first.RequestID {
+		t.Fatalf("same deployment request IDs = %q and %q, want one idempotent identity", first.RequestID, retry.RequestID)
+	}
+	if later.RequestID == first.RequestID {
+		t.Fatalf("later deployment request ID = %q, want a new activation identity", later.RequestID)
+	}
+	if later.Fingerprint != first.Fingerprint {
+		t.Fatalf("unchanged policy fingerprints = %q and %q, want content identity independent of deployment", first.Fingerprint, later.Fingerprint)
+	}
+}
