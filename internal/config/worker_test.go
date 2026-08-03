@@ -18,6 +18,7 @@ func completeEnv() map[string]string {
 		"CHECKPOINT_API_URL":                "http://api.software-factory.svc.cluster.local:8080",
 		"METRICS_ADDR":                      ":9090",
 		"POD_NAME":                          "software-factory-worker-7d9f8c-abcde",
+		"DEPLOY_ID":                         "1785790005-2",
 		"BLOBS_URL":                         "http://blobs:8080",
 		"CODEX_RESPONSES_ENDPOINT":          "https://chatgpt.com/backend-api/codex/responses",
 		"CODEX_AUTH_SECRET_NAME":            "codex-auth",
@@ -98,6 +99,8 @@ func TestLoadWorkerReadsTheWholeEnvironment(t *testing.T) {
 		t.Errorf("MetricsAddr = %q", got.MetricsAddr)
 	case got.PodName != "software-factory-worker-7d9f8c-abcde":
 		t.Errorf("PodName = %q", got.PodName)
+	case got.DeployID != "1785790005-2":
+		t.Errorf("DeployID = %q", got.DeployID)
 	case got.BlobsURL != "http://blobs:8080":
 		t.Errorf("BlobsURL = %q", got.BlobsURL)
 	case got.CodexResponsesEndpoint != "https://chatgpt.com/backend-api/codex/responses":

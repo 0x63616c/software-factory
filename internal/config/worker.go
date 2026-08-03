@@ -47,6 +47,11 @@ type Worker struct {
 	// a lease nobody can attribute cannot be investigated at 3am.
 	PodName string
 
+	// DeployID identifies the CI deployment attempt that rendered this pod.
+	// Every pod from one attempt shares it, while a later redeploy receives a
+	// new value even when the image and Dispatcher policy are unchanged.
+	DeployID string
+
 	// BlobsURL is the in-cluster blob API. It is copied into Run Worker pods so
 	// their future payload codec clients use the same durable service.
 	BlobsURL string
@@ -133,6 +138,7 @@ const (
 	envCheckpointAPIURL         = "CHECKPOINT_API_URL"
 	envMetricsAddr              = "METRICS_ADDR"
 	envPodName                  = "POD_NAME"
+	envDeployID                 = "DEPLOY_ID"
 	envBlobsURL                 = "BLOBS_URL"
 	envCodexResponsesEndpoint   = "CODEX_RESPONSES_ENDPOINT"
 	envCodexAuthSecret          = "CODEX_AUTH_SECRET_NAME"
@@ -155,6 +161,7 @@ func workerEnvNames() []string {
 		envCheckpointAPIURL,
 		envMetricsAddr,
 		envPodName,
+		envDeployID,
 		envBlobsURL,
 		envCodexResponsesEndpoint,
 		envCodexAuthSecret,
@@ -177,6 +184,7 @@ func (w Worker) Validate() error {
 		envCheckpointAPIURL:         w.CheckpointAPIURL,
 		envMetricsAddr:              w.MetricsAddr,
 		envPodName:                  w.PodName,
+		envDeployID:                 w.DeployID,
 		envBlobsURL:                 w.BlobsURL,
 		envCodexResponsesEndpoint:   w.CodexResponsesEndpoint,
 		envCodexAuthSecret:          w.CodexAuthSecretName,
@@ -206,6 +214,7 @@ func LoadWorker() (Worker, error) {
 		CheckpointAPIURL:   os.Getenv(envCheckpointAPIURL),
 		MetricsAddr:        os.Getenv(envMetricsAddr),
 		PodName:            os.Getenv(envPodName),
+		DeployID:           os.Getenv(envDeployID),
 
 		BlobsURL:               os.Getenv(envBlobsURL),
 		CodexResponsesEndpoint: os.Getenv(envCodexResponsesEndpoint),
@@ -250,6 +259,7 @@ func describeWorkerRequirement(err error) error {
 		envCheckpointAPIURL:         "the in-cluster API used for target Attempt checkpoints",
 		envMetricsAddr:              "the address the metrics and health server listens on",
 		envPodName:                  "this pod's own name, from the downward API; it identifies the credential lease holder",
+		envDeployID:                 "the CI deployment attempt that scopes idempotent Dispatcher activation",
 		envBlobsURL:                 "the in-cluster payload blob API copied into Run Worker pods",
 		envCodexResponsesEndpoint:   "the direct subscription-backed Codex Responses endpoint",
 		envCodexAuthSecret:          "the Kubernetes Secret holding the codex credential; the worker's Role is pinned to this exact name",

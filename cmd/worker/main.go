@@ -250,8 +250,7 @@ func run() error {
 
 	activationCtx := context.Background()
 	readiness := temporalapi.NewActivationReadiness(temporal, cfg.TemporalNamespace)
-	request := defaultDispatcherPolicyPublicationRequest("pending")
-	request.RequestID = "startup-" + request.Fingerprint
+	request := deployedDispatcherPolicyPublicationRequest(cfg.DeployID)
 	publisher := targetDispatcherPolicyPublisher{
 		publisher: temporalapi.NewDispatcherPublisher(temporal),
 		input: workflows.DispatcherInput{

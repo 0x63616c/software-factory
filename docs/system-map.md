@@ -49,8 +49,11 @@ Worker activation in `cmd/worker/activation.go` is deliberately ordered:
 
 1. Refuse activation while a legacy workflow or legacy Ticket state remains.
 2. Start the control worker.
-3. publish the complete resolved Dispatcher policy through Update-With-Start
-   and wait for `APPLIED` or `ALREADY_CURRENT`.
+3. Publish the complete resolved Dispatcher policy through Update-With-Start
+   and wait for `APPLIED` or `ALREADY_CURRENT`. The Update ID combines the
+   deployment-attempt ID and policy fingerprint. Pod restarts within one
+   deployment retry idempotently, while a later deployment can start a closed
+   singleton without treating an old policy acknowledgement as current.
 4. Reconcile the `software-factory-maintain` Schedule.
 5. Start the main worker.
 6. Mark `/readyz` ready.
