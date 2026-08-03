@@ -19,10 +19,8 @@ The main worker requires:
   `RUN_WORKER_IMAGE_PULL_SECRET_NAME` for disposable repository workers.
 - `CHECKPOINT_API_URL`, `BLOBS_URL`, `METRICS_ADDR`, downward-API `POD_NAME`,
   and deployment-attempt `DEPLOY_ID`. `DEPLOY_ID` stays stable when a pod
-  restarts within one deployment and changes for a later deployment. The worker
-  combines it with the Dispatcher policy fingerprint for the startup
-  Update-With-Start identity, so retries deduplicate without allowing an old
-  deployment's acknowledgement to suppress a later restart.
+  restarts within one deployment and changes for a later deployment. See
+  [Dispatcher activation](system-map.md#dispatcher) for its role in startup.
 - `CODEX_RESPONSES_ENDPOINT` and `CODEX_AUTH_SECRET_NAME`. The named Secret
   contains the subscription-backed credential document and is read/rotated by
   the main worker only. Its file shape is a provisioning compatibility boundary:

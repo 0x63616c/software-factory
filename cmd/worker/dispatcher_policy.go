@@ -40,20 +40,28 @@ func (p targetDispatcherPolicyPublisher) PublishDispatcherPolicy(ctx context.Con
 }
 
 func defaultDispatcherPolicyPublicationRequest(requestID string) dispatcherPolicyPublicationRequest {
+	policy, fingerprint := resolvedDefaultDispatcherPolicy()
+	return dispatcherPolicyPublicationRequest{RequestID: requestID, Fingerprint: fingerprint, Policy: policy}
+}
+
+func resolvedDefaultDispatcherPolicy() (work.DispatcherPolicy, string) {
 	policy := work.DefaultDispatcherPolicy()
 	fingerprint, err := policy.Fingerprint()
 	if err != nil {
 		panic(fmt.Sprintf("default dispatcher policy is invalid: %v", err))
 	}
-	return dispatcherPolicyPublicationRequest{RequestID: requestID, Fingerprint: fingerprint, Policy: policy}
+	return policy, fingerprint
 }
 
 // deployedDispatcherPolicyPublicationRequest scopes Temporal's idempotency key
 // to one CI deployment while leaving the fingerprint as policy content identity.
 func deployedDispatcherPolicyPublicationRequest(deployID string) dispatcherPolicyPublicationRequest {
-	request := defaultDispatcherPolicyPublicationRequest("pending")
-	request.RequestID = "startup-" + deployID + "-" + request.Fingerprint
-	return request
+	policy, fingerprint := resolvedDefaultDispatcherPolicy()
+	return dispatcherPolicyPublicationRequest{
+		RequestID:   "startup-" + deployID + "-" + fingerprint,
+		Fingerprint: fingerprint,
+		Policy:      policy,
+	}
 }
 
 // ensureTargetDispatcherPolicy is the startup gate for the inactive target
