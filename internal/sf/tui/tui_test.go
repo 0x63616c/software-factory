@@ -98,6 +98,31 @@ func TestTUIQuitConfirmationTimeout(t *testing.T) {
 	}
 }
 
+func TestTUIKeepsNonRuneKeysAsNoOpsInNormalMode(t *testing.T) {
+	m := newTestModel(nil)
+	m.tickets = []sf.TicketSummary{{ID: 1}, {ID: 2}}
+	m.applyFilter()
+
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if got := next.(model).selected; got != 0 {
+		t.Fatalf("selection after non-rune down key = %d, want unchanged", got)
+	}
+}
+
+func TestTUIMultiRuneTextDoesNotBecomeAControlKey(t *testing.T) {
+	m := newTestModel(nil)
+	m.mode = modeCommand
+
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("enter")})
+	got := next.(model)
+	if got.mode != modeCommand {
+		t.Fatalf("mode after multi-rune text = %v, want command mode", got.mode)
+	}
+	if got.inputText != "" {
+		t.Fatalf("input after multi-rune text = %q, want unchanged", got.inputText)
+	}
+}
+
 func TestTUIInvalidSetStateShowsError(t *testing.T) {
 	m := newTestModel(nil)
 	m.tickets = []sf.TicketSummary{{ID: 10, Title: "sample"}}

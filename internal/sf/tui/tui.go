@@ -238,11 +238,20 @@ func (m *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return nil
 	}
 
-	switch msg.String() {
-	case "ctrl+c":
+	if msg.Type == tea.KeyCtrlC {
 		m.quitConfirm = true
 		m.quitUntil = m.clock.Now().Add(quitConfirmWindow)
 		m.footer = "Press again to quit"
+		return nil
+	}
+	if msg.Type != tea.KeyRunes {
+		if m.footer == "" {
+			m.footer = defaultFooter
+		}
+		return nil
+	}
+
+	switch msg.String() {
 	case "h", "?":
 		m.mode = modeHelp
 		m.footer = "press any key to return"
@@ -292,54 +301,56 @@ func (m *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.mode = modeSetState
 		m.inputText = ""
 		m.footer = "state [open|active|failed|done]: "
-	default:
-		if m.footer == "" {
-			m.footer = defaultFooter
-		}
 	}
 	return nil
 }
 
 func (m *model) handleFilterMode(msg tea.KeyMsg) tea.Cmd {
-	switch msg.String() {
-	case "backspace", "delete":
+	if msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete {
 		if len(m.inputText) > 0 {
 			m.inputText = m.inputText[:len(m.inputText)-1]
 		}
 		m.footer = "filter: /" + m.inputText
 		m.filterTerm = m.inputText
 		m.applyFilter()
-	case "esc":
+		return nil
+	}
+	if msg.Type == tea.KeyEsc {
 		m.mode = modeNormal
 		m.inputText = ""
 		m.footer = defaultFooter
-	case "enter":
+		return nil
+	}
+	if msg.Type == tea.KeyEnter {
 		m.mode = modeNormal
 		m.filterTerm = strings.TrimSpace(m.inputText)
 		m.applyFilter()
 		m.footer = defaultFooter
-	default:
-		if len(msg.String()) == 1 {
-			m.appendInput(msg)
-			m.footer = "filter: /" + m.inputText
-			m.filterTerm = m.inputText
-			m.applyFilter()
-		}
+		return nil
+	}
+	if len(msg.String()) == 1 {
+		m.appendInput(msg)
+		m.footer = "filter: /" + m.inputText
+		m.filterTerm = m.inputText
+		m.applyFilter()
 	}
 	return nil
 }
 
 func (m *model) handleCommandMode(msg tea.KeyMsg) tea.Cmd {
-	switch msg.String() {
-	case "backspace", "delete":
+	if msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete {
 		if len(m.inputText) > 0 {
 			m.inputText = m.inputText[:len(m.inputText)-1]
 		}
 		m.footer = ":" + m.inputText
-	case "esc":
+		return nil
+	}
+	if msg.Type == tea.KeyEsc {
 		m.mode = modeNormal
 		m.footer = defaultFooter
-	case "enter":
+		return nil
+	}
+	if msg.Type == tea.KeyEnter {
 		m.mode = modeNormal
 		m.footer = defaultFooter
 		raw := strings.TrimSpace(m.inputText)
@@ -348,27 +359,29 @@ func (m *model) handleCommandMode(msg tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		return m.runCommand(raw)
-	default:
-		if len(msg.String()) == 1 {
-			m.appendInput(msg)
-			m.footer = ":" + m.inputText
-		}
+	}
+	if len(msg.String()) == 1 {
+		m.appendInput(msg)
+		m.footer = ":" + m.inputText
 	}
 	return nil
 }
 
 func (m *model) handleSetStateMode(msg tea.KeyMsg) tea.Cmd {
-	switch msg.String() {
-	case "backspace", "delete":
+	if msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete {
 		if len(m.inputText) > 0 {
 			m.inputText = m.inputText[:len(m.inputText)-1]
 		}
 		m.footer = "state [open|active|failed|done]: " + m.inputText
-	case "esc":
+		return nil
+	}
+	if msg.Type == tea.KeyEsc {
 		m.mode = modeNormal
 		m.inputText = ""
 		m.footer = defaultFooter
-	case "enter":
+		return nil
+	}
+	if msg.Type == tea.KeyEnter {
 		state := strings.ToLower(strings.TrimSpace(m.inputText))
 		m.mode = modeNormal
 		m.inputText = ""
@@ -390,11 +403,10 @@ func (m *model) handleSetStateMode(msg tea.KeyMsg) tea.Cmd {
 			_, err := m.actions.SetTicketState(ctx, ticketID, state)
 			return err
 		}, m.timeout)
-	default:
-		if len(msg.String()) == 1 {
-			m.appendInput(msg)
-			m.footer = "state [open|active|failed|done]: " + m.inputText
-		}
+	}
+	if len(msg.String()) == 1 {
+		m.appendInput(msg)
+		m.footer = "state [open|active|failed|done]: " + m.inputText
 	}
 	return nil
 }
