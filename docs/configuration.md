@@ -17,7 +17,12 @@ The main worker requires:
   `TEMPORAL_NAMESPACE` for durable state and orchestration.
 - `RUN_WORKER_NAMESPACE`, digest-pinned `RUN_WORKER_IMAGE`, and
   `RUN_WORKER_IMAGE_PULL_SECRET_NAME` for disposable repository workers.
-- `CHECKPOINT_API_URL`, `BLOBS_URL`, `METRICS_ADDR`, and downward-API `POD_NAME`.
+- `CHECKPOINT_API_URL`, `BLOBS_URL`, `METRICS_ADDR`, downward-API `POD_NAME`,
+  and deployment-attempt `DEPLOY_ID`. `DEPLOY_ID` stays stable when a pod
+  restarts within one deployment and changes for a later deployment. The worker
+  combines it with the Dispatcher policy fingerprint for the startup
+  Update-With-Start identity, so retries deduplicate without allowing an old
+  deployment's acknowledgement to suppress a later restart.
 - `CODEX_RESPONSES_ENDPOINT` and `CODEX_AUTH_SECRET_NAME`. The named Secret
   contains the subscription-backed credential document and is read/rotated by
   the main worker only. Its file shape is a provisioning compatibility boundary:
