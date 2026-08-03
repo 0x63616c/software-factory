@@ -81,7 +81,7 @@ func Run(actions *sf.Actions, pollInterval time.Duration, timeout time.Duration,
 		output = os.Stdout
 	}
 	program := tea.NewProgram(
-		newModel(actions, pollInterval, timeout),
+		newModel(actions, pollInterval, timeout, clock.System{}),
 		tea.WithInput(os.Stdin),
 		tea.WithOutput(output),
 		tea.WithAltScreen(),
@@ -90,12 +90,12 @@ func Run(actions *sf.Actions, pollInterval time.Duration, timeout time.Duration,
 	return err
 }
 
-func newModel(actions *sf.Actions, pollInterval, timeout time.Duration) model {
+func newModel(actions *sf.Actions, pollInterval, timeout time.Duration, clk clock.Clock) model {
 	return model{
 		actions:      actions,
 		timeout:      timeout,
 		pollInterval: pollInterval,
-		clock:        clock.System{},
+		clock:        clk,
 		footer:       defaultFooter,
 	}
 }
@@ -238,65 +238,60 @@ func (m *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return nil
 	}
 
-	// Bubble Tea defines many key constants; all unlisted keys are deliberate no-ops.
-	//nolint:exhaustive // Unlisted Bubble Tea keys intentionally do nothing in normal mode.
-	switch msg.Type {
-	case tea.KeyCtrlC:
+	switch msg.String() {
+	case "ctrl+c":
 		m.quitConfirm = true
 		m.quitUntil = m.clock.Now().Add(quitConfirmWindow)
 		m.footer = "Press again to quit"
-	case tea.KeyRunes:
-		switch msg.String() {
-		case "h", "?":
-			m.mode = modeHelp
-			m.footer = "press any key to return"
-		case "r", "R":
-			m.loading = true
-			m.footer = "refreshing..."
-			return fetchSnapshot(m.actions, m.timeout)
-		case "j", "down":
-			m.selected = min(len(m.filtered)-1, m.selected+1)
-			m.selectedRunID = ""
-			return fetchTicketDetails(m.actions, m.timeout, m.selectedTicketID())
-		case "k", "up":
-			m.selected = max(0, m.selected-1)
-			m.selectedRunID = ""
-			return fetchTicketDetails(m.actions, m.timeout, m.selectedTicketID())
-		case "w":
-			ticketID, ok := m.selectedTicketIDBool()
-			if !ok {
-				m.footer = "no ticket selected"
-				return nil
-			}
-			return action("work requested for ticket "+fmt.Sprint(ticketID), func(ctx context.Context) error {
-				return m.actions.WorkTicket(ctx, ticketID)
-			}, m.timeout)
-		case "c":
-			ticketID, ok := m.selectedTicketIDBool()
-			if !ok {
-				m.footer = "no ticket selected"
-				return nil
-			}
-			return action("cancel requested for ticket "+fmt.Sprint(ticketID), func(ctx context.Context) error {
-				return m.actions.CancelTicket(ctx, ticketID)
-			}, m.timeout)
-		case "/":
-			m.mode = modeFilter
-			m.inputText = m.filterTerm
-			m.footer = "filter: /" + m.inputText
-		case ":":
-			m.mode = modeCommand
-			m.inputText = ""
-			m.footer = ":"
-		case "s":
-			if _, ok := m.selectedTicketIDBool(); !ok {
-				m.footer = "no ticket selected"
-				return nil
-			}
-			m.mode = modeSetState
-			m.inputText = ""
-			m.footer = "state [open|active|failed|done]: "
+	case "h", "?":
+		m.mode = modeHelp
+		m.footer = "press any key to return"
+	case "r", "R":
+		m.loading = true
+		m.footer = "refreshing..."
+		return fetchSnapshot(m.actions, m.timeout)
+	case "j", "down":
+		m.selected = min(len(m.filtered)-1, m.selected+1)
+		m.selectedRunID = ""
+		return fetchTicketDetails(m.actions, m.timeout, m.selectedTicketID())
+	case "k", "up":
+		m.selected = max(0, m.selected-1)
+		m.selectedRunID = ""
+		return fetchTicketDetails(m.actions, m.timeout, m.selectedTicketID())
+	case "w":
+		ticketID, ok := m.selectedTicketIDBool()
+		if !ok {
+			m.footer = "no ticket selected"
+			return nil
 		}
+		return action("work requested for ticket "+fmt.Sprint(ticketID), func(ctx context.Context) error {
+			return m.actions.WorkTicket(ctx, ticketID)
+		}, m.timeout)
+	case "c":
+		ticketID, ok := m.selectedTicketIDBool()
+		if !ok {
+			m.footer = "no ticket selected"
+			return nil
+		}
+		return action("cancel requested for ticket "+fmt.Sprint(ticketID), func(ctx context.Context) error {
+			return m.actions.CancelTicket(ctx, ticketID)
+		}, m.timeout)
+	case "/":
+		m.mode = modeFilter
+		m.inputText = m.filterTerm
+		m.footer = "filter: /" + m.inputText
+	case ":":
+		m.mode = modeCommand
+		m.inputText = ""
+		m.footer = ":"
+	case "s":
+		if _, ok := m.selectedTicketIDBool(); !ok {
+			m.footer = "no ticket selected"
+			return nil
+		}
+		m.mode = modeSetState
+		m.inputText = ""
+		m.footer = "state [open|active|failed|done]: "
 	default:
 		if m.footer == "" {
 			m.footer = defaultFooter
@@ -306,21 +301,19 @@ func (m *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 }
 
 func (m *model) handleFilterMode(msg tea.KeyMsg) tea.Cmd {
-	// Bubble Tea defines many key constants; text input handles the remainder.
-	//nolint:exhaustive // Unlisted Bubble Tea keys are handled as optional text input.
-	switch msg.Type {
-	case tea.KeyBackspace, tea.KeyDelete:
+	switch msg.String() {
+	case "backspace", "delete":
 		if len(m.inputText) > 0 {
 			m.inputText = m.inputText[:len(m.inputText)-1]
 		}
 		m.footer = "filter: /" + m.inputText
 		m.filterTerm = m.inputText
 		m.applyFilter()
-	case tea.KeyEsc:
+	case "esc":
 		m.mode = modeNormal
 		m.inputText = ""
 		m.footer = defaultFooter
-	case tea.KeyEnter:
+	case "enter":
 		m.mode = modeNormal
 		m.filterTerm = strings.TrimSpace(m.inputText)
 		m.applyFilter()
@@ -337,18 +330,16 @@ func (m *model) handleFilterMode(msg tea.KeyMsg) tea.Cmd {
 }
 
 func (m *model) handleCommandMode(msg tea.KeyMsg) tea.Cmd {
-	// Bubble Tea defines many key constants; text input handles the remainder.
-	//nolint:exhaustive // Unlisted Bubble Tea keys are handled as optional text input.
-	switch msg.Type {
-	case tea.KeyBackspace, tea.KeyDelete:
+	switch msg.String() {
+	case "backspace", "delete":
 		if len(m.inputText) > 0 {
 			m.inputText = m.inputText[:len(m.inputText)-1]
 		}
 		m.footer = ":" + m.inputText
-	case tea.KeyEsc:
+	case "esc":
 		m.mode = modeNormal
 		m.footer = defaultFooter
-	case tea.KeyEnter:
+	case "enter":
 		m.mode = modeNormal
 		m.footer = defaultFooter
 		raw := strings.TrimSpace(m.inputText)
@@ -367,19 +358,17 @@ func (m *model) handleCommandMode(msg tea.KeyMsg) tea.Cmd {
 }
 
 func (m *model) handleSetStateMode(msg tea.KeyMsg) tea.Cmd {
-	// Bubble Tea defines many key constants; text input handles the remainder.
-	//nolint:exhaustive // Unlisted Bubble Tea keys are handled as optional text input.
-	switch msg.Type {
-	case tea.KeyBackspace, tea.KeyDelete:
+	switch msg.String() {
+	case "backspace", "delete":
 		if len(m.inputText) > 0 {
 			m.inputText = m.inputText[:len(m.inputText)-1]
 		}
 		m.footer = "state [open|active|failed|done]: " + m.inputText
-	case tea.KeyEsc:
+	case "esc":
 		m.mode = modeNormal
 		m.inputText = ""
 		m.footer = defaultFooter
-	case tea.KeyEnter:
+	case "enter":
 		state := strings.ToLower(strings.TrimSpace(m.inputText))
 		m.mode = modeNormal
 		m.inputText = ""
