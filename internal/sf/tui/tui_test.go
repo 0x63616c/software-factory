@@ -70,7 +70,7 @@ func TestTUIQuitConfirmationFlow(t *testing.T) {
 func TestTUIQuitConfirmationTimeout(t *testing.T) {
 	m := newModel(nil, time.Second, time.Second)
 	m.quitConfirm = true
-	m.quitUntil = time.Now().Add(-time.Second)
+	m.quitUntil = time.Unix(0, 0)
 	m.footer = "Press again to quit"
 
 	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
@@ -184,12 +184,12 @@ func TestTUICommandModePauseAndMaxInFlight(t *testing.T) {
 	if commandMode.mode != modeCommand {
 		t.Fatalf("expected command mode")
 	}
-	next, cmd := commandMode.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("u")})
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("e")})
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, _ = commandMode.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
+	next, _ = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	next, _ = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("u")})
+	next, _ = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	next, _ = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("e")})
+	next, cmd := next.(model).Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd == nil {
 		t.Fatalf("expected action command for :pause")
 	}
@@ -202,7 +202,7 @@ func TestTUICommandModePauseAndMaxInFlight(t *testing.T) {
 	}
 
 	// Open command mode and set max-in-flight.
-	next, cmd = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(":")})
+	next, _ = next.(model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(":")})
 	commandMode = next.(model)
 	if commandMode.mode != modeCommand {
 		t.Fatalf("expected command mode for set-max command")

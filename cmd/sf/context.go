@@ -74,7 +74,7 @@ func addContextCommands(root *cobra.Command) {
 			if cfg.Contexts == nil {
 				cfg.Contexts = map[string]config.SFContext{}
 			}
-			current, _ := cfg.Contexts[name]
+			current := cfg.Contexts[name]
 			if len(args) > 1 {
 				updates, parseErr := parseContextAssignments(args[1:])
 				if parseErr != nil {

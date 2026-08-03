@@ -1,3 +1,4 @@
+// Package main tests the sf CLI command surface.
 package main
 
 import (
@@ -289,8 +290,7 @@ func TestRunTranscriptRoute(t *testing.T) {
 	listCalled := false
 	transcriptCalled := false
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/v1/tickets/44/runs":
+		if r.URL.Path == "/v1/tickets/44/runs" {
 			if r.Method != http.MethodGet {
 				t.Fatalf("expected get, got %s", r.Method)
 			}

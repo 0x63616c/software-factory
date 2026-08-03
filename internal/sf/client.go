@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -181,7 +182,7 @@ func (client *APIClient) GetTicket(ctx context.Context, ticketID int64) (TicketR
 
 // CreateTicket creates a new ticket.
 func (client *APIClient) CreateTicket(ctx context.Context, title, body string, blockers []int64) (TicketResponse, error) {
-	var payload = struct {
+	payload := struct {
 		Title     string  `json:"title"`
 		Body      string  `json:"body"`
 		BlockedBy []int64 `json:"blockedBy"`
@@ -199,7 +200,7 @@ func (client *APIClient) CreateTicket(ctx context.Context, title, body string, b
 
 // UpdateTicketState patches ticket state.
 func (client *APIClient) UpdateTicketState(ctx context.Context, ticketID int64, state string) (TicketResponse, error) {
-	var payload = struct {
+	payload := struct {
 		State string `json:"state"`
 	}{
 		State: state,
@@ -288,7 +289,8 @@ func (client *APIClient) GetTranscript(ctx context.Context, ticketID int64, runI
 	path := fmt.Sprintf("/v1/tickets/%d/runs/%s/steps/%d/attempts/%d/transcript", ticketID, runID, ordinal, attempt)
 	raw, _, err := client.doRaw(ctx, http.MethodGet, path, nil)
 	if err != nil {
-		if apiErr, ok := err.(APIError); ok {
+		var apiErr APIError
+		if errors.As(err, &apiErr) {
 			return nil, apiErr
 		}
 		return nil, err
@@ -338,8 +340,8 @@ func parseErrorResponse(status int, body []byte) error {
 
 // ExitCode translates stable API reasons into stable exit semantics.
 func ExitCode(err error) int {
-	apiErr, ok := err.(APIError)
-	if !ok {
+	var apiErr APIError
+	if !errors.As(err, &apiErr) {
 		return 1
 	}
 	switch apiErr.Reason {

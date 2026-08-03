@@ -8,10 +8,14 @@ import "strings"
 type OutputFormat string
 
 const (
+	// OutputFormatTable renders the default compact table.
 	OutputFormatTable OutputFormat = "table"
-	OutputFormatJSON  OutputFormat = "json"
-	OutputFormatYAML  OutputFormat = "yaml"
-	OutputFormatWide  OutputFormat = "wide"
+	// OutputFormatJSON renders machine-readable JSON.
+	OutputFormatJSON OutputFormat = "json"
+	// OutputFormatYAML renders machine-readable YAML.
+	OutputFormatYAML OutputFormat = "yaml"
+	// OutputFormatWide renders the expanded table.
+	OutputFormatWide OutputFormat = "wide"
 )
 
 var allowedOutputFormats = map[OutputFormat]struct{}{
@@ -25,10 +29,14 @@ var allowedOutputFormats = map[OutputFormat]struct{}{
 type TicketState string
 
 const (
-	TicketStateOpen   TicketState = "open"
+	// TicketStateOpen is ready for Dispatcher admission.
+	TicketStateOpen TicketState = "open"
+	// TicketStateActive is currently being worked.
 	TicketStateActive TicketState = "active"
+	// TicketStateFailed needs intervention or retry.
 	TicketStateFailed TicketState = "failed"
-	TicketStateDone   TicketState = "done"
+	// TicketStateDone has completed successfully.
+	TicketStateDone TicketState = "done"
 )
 
 var allowedTicketStates = map[TicketState]struct{}{
@@ -79,7 +87,7 @@ func ParseOutputFormatStrict(raw string) (OutputFormat, error) {
 	}
 }
 
-// IsValid reports whether format is one of the supported output modes.
+// IsValidOutputFormat reports whether format is one of the supported output modes.
 func IsValidOutputFormat(format OutputFormat) bool {
 	_, ok := allowedOutputFormats[format]
 	return ok
@@ -87,7 +95,7 @@ func IsValidOutputFormat(format OutputFormat) bool {
 
 // IsValidTicketState reports whether state is one of the supported ticket states.
 func IsValidTicketState(raw string) bool {
-	state := TicketState(strings.ToLower(strings.TrimSpace(string(raw))))
+	state := TicketState(strings.ToLower(strings.TrimSpace(raw)))
 	_, ok := allowedTicketStates[state]
 	return ok
 }
@@ -178,6 +186,7 @@ type UsageOutput struct {
 	Complete          bool  `json:"complete"`
 }
 
+// ConfirmedMergeOutput records the reviewed head and resulting merge commit.
 type ConfirmedMergeOutput struct {
 	ReviewedHead string `json:"reviewedHead"`
 	MergeSHA     string `json:"mergeSha"`

@@ -39,7 +39,9 @@ func addRunCommands(root *cobra.Command) {
 		},
 	}
 	runList.Flags().StringVar(&ticketIDRaw, "ticket", "", "Ticket id")
-	runList.MarkFlagRequired("ticket")
+	if err := runList.MarkFlagRequired("ticket"); err != nil {
+		panic(fmt.Sprintf("marking run list ticket flag required: %v", err))
+	}
 	run.AddCommand(runList)
 
 	var outRunFile string

@@ -27,8 +27,7 @@ func addFactoryCommands(root *cobra.Command) {
 				if err != nil {
 					return writeError(cmd.ErrOrStderr(), err)
 				}
-				switch runtime.Format {
-				case sf.OutputFormatJSON:
+				if runtime.Format == sf.OutputFormatJSON {
 					encoded, err := json.MarshalIndent(map[string]any{
 						"total":     status.Total,
 						"open":      status.Open,
@@ -42,7 +41,7 @@ func addFactoryCommands(root *cobra.Command) {
 						return err
 					}
 					_, _ = fmt.Fprintln(runtime.Out, string(encoded))
-				default:
+				} else {
 					_, _ = fmt.Fprintf(runtime.Out, "total=%d open=%d active=%d done=%d failed=%d ready=%d not-ready=%d\n", status.Total, status.Open, status.Active, status.Done, status.Failed, status.Ready, status.NotReady)
 				}
 				return nil

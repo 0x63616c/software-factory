@@ -1,3 +1,4 @@
+// Package tui provides the interactive Software Factory terminal client.
 package tui
 
 import (
@@ -12,6 +13,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/0x63616c/software-factory/internal/clock"
 	"github.com/0x63616c/software-factory/internal/sf"
 )
 
@@ -29,6 +31,7 @@ type model struct {
 	actions      *sf.Actions
 	timeout      time.Duration
 	pollInterval time.Duration
+	clock        clock.Clock
 	width        int
 	height       int
 
@@ -50,8 +53,8 @@ type model struct {
 }
 
 const (
-	defaultFooter      = "h help | ^C quit"
-	quitConfirmWindow  = 2 * time.Second
+	defaultFooter     = "h help | ^C quit"
+	quitConfirmWindow = 2 * time.Second
 )
 
 type snapshotMsg struct {
@@ -72,6 +75,7 @@ type actionMsg struct {
 
 type tickMsg struct{}
 
+// Run starts the interactive terminal client until the user quits or it fails.
 func Run(actions *sf.Actions, pollInterval time.Duration, timeout time.Duration, output io.Writer) error {
 	if output == nil {
 		output = os.Stdout
@@ -91,6 +95,7 @@ func newModel(actions *sf.Actions, pollInterval, timeout time.Duration) model {
 		actions:      actions,
 		timeout:      timeout,
 		pollInterval: pollInterval,
+		clock:        clock.System{},
 		footer:       defaultFooter,
 	}
 }
@@ -143,7 +148,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 	case tickMsg:
-		if m.quitConfirm && !m.quitUntil.IsZero() && time.Now().After(m.quitUntil) {
+		if m.quitConfirm && !m.quitUntil.IsZero() && m.clock.Now().After(m.quitUntil) {
 			m.quitConfirm = false
 			m.footer = defaultFooter
 		}
@@ -220,7 +225,7 @@ func (m *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 
 	if m.quitConfirm {
-		if !m.quitUntil.IsZero() && time.Now().After(m.quitUntil) {
+		if !m.quitUntil.IsZero() && m.clock.Now().After(m.quitUntil) {
 			m.quitConfirm = false
 			m.footer = defaultFooter
 		} else if msg.String() == "ctrl+c" {
@@ -233,10 +238,12 @@ func (m *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return nil
 	}
 
+	// Bubble Tea defines many key constants; all unlisted keys are deliberate no-ops.
+	//nolint:exhaustive // Unlisted Bubble Tea keys intentionally do nothing in normal mode.
 	switch msg.Type {
 	case tea.KeyCtrlC:
 		m.quitConfirm = true
-		m.quitUntil = time.Now().Add(quitConfirmWindow)
+		m.quitUntil = m.clock.Now().Add(quitConfirmWindow)
 		m.footer = "Press again to quit"
 	case tea.KeyRunes:
 		switch msg.String() {
@@ -299,6 +306,8 @@ func (m *model) handleKey(msg tea.KeyMsg) tea.Cmd {
 }
 
 func (m *model) handleFilterMode(msg tea.KeyMsg) tea.Cmd {
+	// Bubble Tea defines many key constants; text input handles the remainder.
+	//nolint:exhaustive // Unlisted Bubble Tea keys are handled as optional text input.
 	switch msg.Type {
 	case tea.KeyBackspace, tea.KeyDelete:
 		if len(m.inputText) > 0 {
@@ -328,6 +337,8 @@ func (m *model) handleFilterMode(msg tea.KeyMsg) tea.Cmd {
 }
 
 func (m *model) handleCommandMode(msg tea.KeyMsg) tea.Cmd {
+	// Bubble Tea defines many key constants; text input handles the remainder.
+	//nolint:exhaustive // Unlisted Bubble Tea keys are handled as optional text input.
 	switch msg.Type {
 	case tea.KeyBackspace, tea.KeyDelete:
 		if len(m.inputText) > 0 {
@@ -356,6 +367,8 @@ func (m *model) handleCommandMode(msg tea.KeyMsg) tea.Cmd {
 }
 
 func (m *model) handleSetStateMode(msg tea.KeyMsg) tea.Cmd {
+	// Bubble Tea defines many key constants; text input handles the remainder.
+	//nolint:exhaustive // Unlisted Bubble Tea keys are handled as optional text input.
 	switch msg.Type {
 	case tea.KeyBackspace, tea.KeyDelete:
 		if len(m.inputText) > 0 {
