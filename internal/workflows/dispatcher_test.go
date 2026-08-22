@@ -580,8 +580,10 @@ func TestDispatcherDrainsTrackedChildrenBeforeContinuingAsNew(t *testing.T) {
 }
 
 func targetDispatcherInput() workflows.DispatcherInput {
+	policy := work.DefaultDispatcherPolicy()
+	policy.Paused = false
 	return workflows.DispatcherInput{
-		Policy:   work.DefaultDispatcherPolicy(),
+		Policy:   policy,
 		CloneURL: "https://github.com/example/repository.git",
 		Model:    work.Model{Name: "gpt-5", Effort: "high"},
 	}

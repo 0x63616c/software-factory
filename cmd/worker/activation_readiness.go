@@ -14,8 +14,8 @@ type legacyTicketLister interface {
 }
 
 // ensureActivationReady is the code-side half of the operational cutover
-// gate. It never mutates old work: activation simply refuses to publish an
-// unpaused target policy while a legacy workflow or Ticket state remains.
+// gate. It never mutates old work: activation simply refuses to publish a
+// target policy while a legacy workflow or Ticket state remains.
 func ensureActivationReady(ctx context.Context, executions legacyExecutionLister, tickets legacyTicketLister) error {
 	legacyExecutions, err := executions.RunningPreActivationExecutions(ctx)
 	if err != nil {

@@ -10,7 +10,7 @@ of preserving this prose by inertia.
 an open, dependency-ready Ticket in the factory Postgres
         |
         | Dispatcher, workflow ID software-factory-target-dispatcher
-        | acknowledged unpaused policy, maximum one Run in flight by default
+        | acknowledged paused policy, maximum one Run in flight by default
         v
 factory-ticket-<ticket-id> (WorkOnTicket)
         |
@@ -58,10 +58,10 @@ Worker activation in `cmd/worker/activation.go` is deliberately ordered:
 5. Start the main worker.
 6. Mark `/readyz` ready.
 
-The default policy comes from `work.DefaultDispatcherPolicy`: it is unpaused,
-admits one Run at a time, and carries the immutable target Run policy. A policy
-is part of the child input at admission, so a later publication cannot change
-an already-running Run.
+The default policy comes from `work.DefaultDispatcherPolicy`: it is paused,
+admits no Runs until an operator explicitly resumes it, and carries the
+immutable target Run policy. A policy is part of the child input at admission,
+so a later publication cannot change an already-running Run.
 
 `Dispatcher` drains tracked children before Continue-As-New. The continued
 input carries the last accepted policy. The stable workflow ID and separate

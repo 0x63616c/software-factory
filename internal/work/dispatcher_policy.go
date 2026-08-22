@@ -21,7 +21,7 @@ type DispatcherPolicy struct {
 // DefaultDispatcherPolicy returns the resolved policy published by a target
 // worker before it is allowed to poll its main queue.
 func DefaultDispatcherPolicy() DispatcherPolicy {
-	return DispatcherPolicy{Run: DefaultTargetRunPolicy(), MaxInFlight: 1}
+	return DispatcherPolicy{Run: DefaultTargetRunPolicy(), MaxInFlight: 1, Paused: true}
 }
 
 // Validate reports whether a DispatcherPolicy can safely admit target Runs.
