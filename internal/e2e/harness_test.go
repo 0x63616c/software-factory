@@ -101,10 +101,12 @@ func runScenario(t *testing.T, trace scenarioTrace) e2eResult {
 	runWorkers := newFakeRunWorkers(t, temporal.Client(), factoryStore, script)
 	startFactoryWorkers(t, temporal.Client(), factoryStore, blobStore, responses.client, runWorkers)
 
+	policy := work.DefaultDispatcherPolicy()
+	policy.Paused = false
 	dispatcher, err := temporal.Client().ExecuteWorkflow(ctx, temporalclient.StartWorkflowOptions{
 		ID: "software-factory-e2e-dispatcher", TaskQueue: work.TargetDispatcherTaskQueue,
 	}, workflows.Dispatcher, workflows.DispatcherInput{
-		Policy: work.DefaultDispatcherPolicy(), CloneURL: "https://github.com/example/e2e.git",
+		Policy: policy, CloneURL: "https://github.com/example/e2e.git",
 		Model: work.DefaultFactoryConfig().DefaultModel,
 	})
 	if err != nil {
