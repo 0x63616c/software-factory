@@ -90,7 +90,7 @@ func TestCORSPreflightAllowsTheConfiguredOrigin(t *testing.T) {
 	}
 }
 
-func TestCodecRoutePassesThroughControlCenterPayloads(t *testing.T) {
+func TestCodecRoutePassesThroughAllowedNamespacePayloads(t *testing.T) {
 	t.Parallel()
 
 	handler := newHandler(blobs.NewMemStore(), []string{"https://temporal.example"}, discardLogger())
@@ -121,6 +121,17 @@ func TestCodecRoutePassesThroughControlCenterPayloads(t *testing.T) {
 	}
 	if got := decodePayloads(t, controlCenterResponse); !proto.Equal(got, want) {
 		t.Errorf("control-center payloads = %v, want %v", got, want)
+	}
+
+	dontTextYourEx := httptest.NewRequest(http.MethodPost, "/decode", bytes.NewReader(body))
+	dontTextYourEx.Header.Set("X-Namespace", dontTextYourExTemporalNamespace)
+	dontTextYourExResponse := httptest.NewRecorder()
+	handler.ServeHTTP(dontTextYourExResponse, dontTextYourEx)
+	if dontTextYourExResponse.Code != http.StatusOK {
+		t.Errorf("dont-text-your-ex POST /decode status = %d, want %d", dontTextYourExResponse.Code, http.StatusOK)
+	}
+	if got := decodePayloads(t, dontTextYourExResponse); !proto.Equal(got, want) {
+		t.Errorf("dont-text-your-ex payloads = %v, want %v", got, want)
 	}
 
 	denied := httptest.NewRequest(http.MethodPost, "/decode", bytes.NewReader(body))
