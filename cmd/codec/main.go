@@ -23,18 +23,6 @@ import (
 	"github.com/0x63616c/software-factory/internal/telemetry"
 )
 
-const (
-	controlCenterTemporalNamespace   = "control-center"
-	dontTextYourExTemporalNamespace  = "dont-text-your-ex"
-	softwareFactoryTemporalNamespace = "software-factory"
-)
-
-var allowedTemporalNamespaces = map[string]struct{}{
-	controlCenterTemporalNamespace:   {},
-	dontTextYourExTemporalNamespace:  {},
-	softwareFactoryTemporalNamespace: {},
-}
-
 func main() {
 	if err := run(); err != nil {
 		slog.New(slog.NewJSONHandler(os.Stderr, nil)).Error("the codec service stopped", slog.String("error", err.Error()))
@@ -85,11 +73,8 @@ func run() error {
 func newHandler(store blobs.Store, origins []string, logger *slog.Logger) http.Handler {
 	codec := payloads.Handler(store, telemetry.NewMetrics(prometheus.NewRegistry()))
 	mux := http.NewServeMux()
-	// The UI supplies the selected namespace in X-Namespace. The endpoint stays
-	// namespace-agnostic, while the allowlist prevents this shared codec from
-	// decoding a future namespace by accident.
-	mux.Handle("/encode", allowedNamespaceCodec(codec))
-	mux.Handle("/decode", allowedNamespaceCodec(codec))
+	mux.Handle("/encode", codec)
+	mux.Handle("/decode", codec)
 	mux.HandleFunc("/healthz", func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusOK)
 	})
@@ -140,16 +125,6 @@ func (writer *statusWriter) Write(body []byte) (int, error) {
 		writer.WriteHeader(http.StatusOK)
 	}
 	return writer.ResponseWriter.Write(body)
-}
-
-func allowedNamespaceCodec(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if _, allowed := allowedTemporalNamespaces[request.Header.Get("X-Namespace")]; !allowed {
-			http.Error(writer, "namespace is not allowed", http.StatusForbidden)
-			return
-		}
-		next.ServeHTTP(writer, request)
-	})
 }
 
 func cors(origins []string, next http.Handler) http.Handler {

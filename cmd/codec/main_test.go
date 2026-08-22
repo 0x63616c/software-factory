@@ -90,7 +90,7 @@ func TestCORSPreflightAllowsTheConfiguredOrigin(t *testing.T) {
 	}
 }
 
-func TestCodecRoutePassesThroughAllowedNamespacePayloads(t *testing.T) {
+func TestCodecRoutePassesThroughEveryNamespacePayload(t *testing.T) {
 	t.Parallel()
 
 	handler := newHandler(blobs.NewMemStore(), []string{"https://temporal.example"}, discardLogger())
@@ -113,7 +113,7 @@ func TestCodecRoutePassesThroughAllowedNamespacePayloads(t *testing.T) {
 	}
 
 	controlCenter := httptest.NewRequest(http.MethodPost, "/decode", bytes.NewReader(body))
-	controlCenter.Header.Set("X-Namespace", controlCenterTemporalNamespace)
+	controlCenter.Header.Set("X-Namespace", "control-center")
 	controlCenterResponse := httptest.NewRecorder()
 	handler.ServeHTTP(controlCenterResponse, controlCenter)
 	if controlCenterResponse.Code != http.StatusOK {
@@ -124,7 +124,7 @@ func TestCodecRoutePassesThroughAllowedNamespacePayloads(t *testing.T) {
 	}
 
 	dontTextYourEx := httptest.NewRequest(http.MethodPost, "/decode", bytes.NewReader(body))
-	dontTextYourEx.Header.Set("X-Namespace", dontTextYourExTemporalNamespace)
+	dontTextYourEx.Header.Set("X-Namespace", "dont-text-your-ex")
 	dontTextYourExResponse := httptest.NewRecorder()
 	handler.ServeHTTP(dontTextYourExResponse, dontTextYourEx)
 	if dontTextYourExResponse.Code != http.StatusOK {
@@ -134,12 +134,15 @@ func TestCodecRoutePassesThroughAllowedNamespacePayloads(t *testing.T) {
 		t.Errorf("dont-text-your-ex payloads = %v, want %v", got, want)
 	}
 
-	denied := httptest.NewRequest(http.MethodPost, "/decode", bytes.NewReader(body))
-	denied.Header.Set("X-Namespace", "unregistered")
-	deniedResponse := httptest.NewRecorder()
-	handler.ServeHTTP(deniedResponse, denied)
-	if deniedResponse.Code != http.StatusForbidden {
-		t.Errorf("unregistered POST /decode status = %d, want %d", deniedResponse.Code, http.StatusForbidden)
+	arbitrary := httptest.NewRequest(http.MethodPost, "/decode", bytes.NewReader(body))
+	arbitrary.Header.Set("X-Namespace", "new-product-created-after-this-release")
+	arbitraryResponse := httptest.NewRecorder()
+	handler.ServeHTTP(arbitraryResponse, arbitrary)
+	if arbitraryResponse.Code != http.StatusOK {
+		t.Errorf("arbitrary namespace POST /decode status = %d, want %d", arbitraryResponse.Code, http.StatusOK)
+	}
+	if got := decodePayloads(t, arbitraryResponse); !proto.Equal(got, want) {
+		t.Errorf("arbitrary namespace payloads = %v, want %v", got, want)
 	}
 }
 
@@ -184,7 +187,7 @@ func TestCodecLogsRequestMetadataWithoutPayloadContents(t *testing.T) {
 		t.Fatalf("marshal request: %v", err)
 	}
 	request := httptest.NewRequest(http.MethodPost, "/decode", bytes.NewReader(body))
-	request.Header.Set("X-Namespace", controlCenterTemporalNamespace)
+	request.Header.Set("X-Namespace", "control-center")
 	response := httptest.NewRecorder()
 
 	newHandler(blobs.NewMemStore(), []string{"https://temporal.example"}, logger).ServeHTTP(response, request)
@@ -215,7 +218,7 @@ func servePayloads(t *testing.T, handler http.Handler, path string, payloads *co
 		t.Fatalf("marshal request: %v", err)
 	}
 	request := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
-	request.Header.Set("X-Namespace", softwareFactoryTemporalNamespace)
+	request.Header.Set("X-Namespace", "software-factory")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	return response
