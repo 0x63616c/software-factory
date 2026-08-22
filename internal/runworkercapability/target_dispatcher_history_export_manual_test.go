@@ -67,11 +67,13 @@ func TestExportTargetDispatcherHistory(t *testing.T) {
 	}
 	t.Cleanup(w.Stop)
 
+	policy := work.DefaultDispatcherPolicy()
+	policy.Paused = false
 	run, err := server.Client().ExecuteWorkflow(context.Background(), temporalclient.StartWorkflowOptions{
 		ID:        work.TargetDispatcherWorkflowID + "-history",
 		TaskQueue: queue,
 	}, workflows.Dispatcher, workflows.DispatcherInput{
-		Policy:   work.DefaultDispatcherPolicy(),
+		Policy:   policy,
 		CloneURL: "https://github.com/example/repository.git",
 		Model:    work.Model{Name: "gpt-5", Effort: "high"},
 	})

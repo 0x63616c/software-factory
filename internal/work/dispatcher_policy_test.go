@@ -6,6 +6,14 @@ import (
 	"github.com/0x63616c/software-factory/internal/work"
 )
 
+func TestDefaultDispatcherPolicyStartsPaused(t *testing.T) {
+	t.Parallel()
+
+	if !work.DefaultDispatcherPolicy().Paused {
+		t.Fatal("DefaultDispatcherPolicy().Paused = false, want true")
+	}
+}
+
 func TestDispatcherPolicyFingerprintIsStableAndChangesWithTheResolvedPolicy(t *testing.T) {
 	t.Parallel()
 
