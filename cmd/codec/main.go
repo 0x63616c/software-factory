@@ -25,11 +25,13 @@ import (
 
 const (
 	controlCenterTemporalNamespace   = "control-center"
+	dontTextYourExTemporalNamespace  = "dont-text-your-ex"
 	softwareFactoryTemporalNamespace = "software-factory"
 )
 
 var allowedTemporalNamespaces = map[string]struct{}{
 	controlCenterTemporalNamespace:   {},
+	dontTextYourExTemporalNamespace:  {},
 	softwareFactoryTemporalNamespace: {},
 }
 
